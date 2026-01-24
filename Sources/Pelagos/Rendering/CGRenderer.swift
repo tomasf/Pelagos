@@ -10,9 +10,6 @@ import ImageIO
 
 /// A CoreGraphics-based renderer for SVG content
 public final class CGRenderer: SVGRenderer {
-    public typealias Path = CGMutablePath
-    public typealias NativeColor = CGColor
-
     private let context: CGContext
 
     public init(context: CGContext) {
@@ -100,12 +97,7 @@ public final class CGRenderer: SVGRenderer {
         context.addPath(path)
         context.setFillColor(color)
 
-        switch rule {
-        case .nonzero:
-            context.fillPath()
-        case .evenodd:
-            context.fillPath(using: .evenOdd)
-        }
+        context.fillPath(using: rule.cgFillRule)
     }
 
     public func stroke(_ path: CGMutablePath, color: CGColor, style: StrokeStyle) {
@@ -116,26 +108,8 @@ public final class CGRenderer: SVGRenderer {
         context.setStrokeColor(color)
         context.setLineWidth(CGFloat(style.width))
         context.setMiterLimit(CGFloat(style.miterLimit))
-
-        switch style.cap {
-        case .butt:
-            context.setLineCap(.butt)
-        case .round:
-            context.setLineCap(.round)
-        case .square:
-            context.setLineCap(.square)
-        }
-
-        switch style.join {
-        case .miter, .miterClip:
-            context.setLineJoin(.miter)
-        case .round:
-            context.setLineJoin(.round)
-        case .bevel:
-            context.setLineJoin(.bevel)
-        case .arcs:
-            context.setLineJoin(.miter)
-        }
+        context.setLineCap(style.cap.cgLineCap)
+        context.setLineJoin(style.join.cgLineJoin)
 
         if let dashArray = style.dashArray, !dashArray.isEmpty {
             context.setLineDash(phase: CGFloat(style.dashOffset), lengths: dashArray.map { CGFloat($0) })
@@ -149,12 +123,7 @@ public final class CGRenderer: SVGRenderer {
         defer { context.restoreGState() }
 
         context.addPath(path)
-        switch rule {
-        case .nonzero:
-            context.clip()
-        case .evenodd:
-            context.clip(using: .evenOdd)
-        }
+        context.clip(using: rule.cgFillRule)
 
         let bounds = path.boundingBox
 
@@ -189,7 +158,7 @@ public final class CGRenderer: SVGRenderer {
 
         // Apply gradient transform if present
         if let transform = linear.gradientTransform {
-            context.concatenate(cgTransform(from: transform))
+            context.concatenate(transform.cgTransform)
         }
 
         var options: CGGradientDrawingOptions = []
@@ -231,7 +200,7 @@ public final class CGRenderer: SVGRenderer {
 
         // Apply gradient transform if present
         if let transform = radial.gradientTransform {
-            context.concatenate(cgTransform(from: transform))
+            context.concatenate(transform.cgTransform)
         }
 
         var options: CGGradientDrawingOptions = []
@@ -263,12 +232,7 @@ public final class CGRenderer: SVGRenderer {
         defer { context.restoreGState() }
 
         context.addPath(path)
-        switch rule {
-        case .nonzero:
-            context.clip()
-        case .evenodd:
-            context.clip(using: .evenOdd)
-        }
+        context.clip(using: rule.cgFillRule)
 
         // Calculate tile dimensions based on pattern units
         var tileX: CGFloat
@@ -288,7 +252,7 @@ public final class CGRenderer: SVGRenderer {
 
             // Apply pattern transform if any
             if let transform = pattern.transform {
-                context.concatenate(cgTransform(from: transform))
+                context.concatenate(transform.cgTransform)
             }
         } else {
             // Pattern coordinates are in user space
@@ -301,7 +265,7 @@ public final class CGRenderer: SVGRenderer {
 
             // Apply pattern transform if any
             if let transform = pattern.transform {
-                context.concatenate(cgTransform(from: transform))
+                context.concatenate(transform.cgTransform)
             }
         }
 
@@ -410,17 +374,12 @@ public final class CGRenderer: SVGRenderer {
     }
 
     public func concatenate(_ transform: AffineTransform) {
-        context.concatenate(cgTransform(from: transform))
+        context.concatenate(transform.cgTransform)
     }
 
     public func clip(_ path: CGMutablePath, rule: FillRule) {
         context.addPath(path)
-        switch rule {
-        case .nonzero:
-            context.clip()
-        case .evenodd:
-            context.clip(using: .evenOdd)
-        }
+        context.clip(using: rule.cgFillRule)
     }
 
     public func setOpacity(_ opacity: Double) {
@@ -430,14 +389,57 @@ public final class CGRenderer: SVGRenderer {
     // MARK: - Helper
 
     private func cgTransform(from transform: AffineTransform) -> CGAffineTransform {
+        transform.cgTransform
+    }
+}
+
+private extension AffineTransform {
+    var cgTransform: CGAffineTransform {
         CGAffineTransform(
-            a: CGFloat(transform.a),
-            b: CGFloat(transform.b),
-            c: CGFloat(transform.c),
-            d: CGFloat(transform.d),
-            tx: CGFloat(transform.tx),
-            ty: CGFloat(transform.ty)
+            a: CGFloat(a),
+            b: CGFloat(b),
+            c: CGFloat(c),
+            d: CGFloat(d),
+            tx: CGFloat(tx),
+            ty: CGFloat(ty)
         )
+    }
+}
+
+private extension FillRule {
+    var cgFillRule: CGPathFillRule {
+        switch self {
+        case .nonzero:
+            return .winding
+        case .evenodd:
+            return .evenOdd
+        }
+    }
+}
+
+private extension LineCap {
+    var cgLineCap: CGLineCap {
+        switch self {
+        case .butt:
+            return .butt
+        case .round:
+            return .round
+        case .square:
+            return .square
+        }
+    }
+}
+
+private extension LineJoin {
+    var cgLineJoin: CGLineJoin {
+        switch self {
+        case .miter, .miterClip, .arcs:
+            return .miter
+        case .round:
+            return .round
+        case .bevel:
+            return .bevel
+        }
     }
 }
 
