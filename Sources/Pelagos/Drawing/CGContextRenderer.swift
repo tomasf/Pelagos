@@ -1,6 +1,9 @@
 #if canImport(CoreGraphics)
 @preconcurrency import CoreGraphics
 import Foundation
+#if canImport(ImageIO)
+import ImageIO
+#endif
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
 public final class CGContextRenderer: DrawCallback, @unchecked Sendable {
@@ -79,8 +82,10 @@ public final class CGContextRenderer: DrawCallback, @unchecked Sendable {
                 $0.addPath(buildPath(from: path.segments))
             }
 
-        case .drawText, .drawImage:
+        case .drawText:
             return .continue
+        case .drawImage(let image):
+            return drawImage(context: context, drawContext: drawContext, image: image)
         }
     }
 }
@@ -98,32 +103,57 @@ private func drawShape(
 
     let path = CGMutablePath()
     draw(path)
+    let bbox = path.boundingBoxOfPath
+
+    if let clipReference = drawContext.presentation.clipPath,
+       let clipPath = drawContext.definitions.clipPaths[clipReference],
+       let clipShape = buildClipPath(clipPath, definitions: drawContext.definitions, bbox: bbox) {
+        context.addPath(clipShape)
+        context.clip(using: .winding)
+    }
+
     context.addPath(path)
 
     let presentation = drawContext.presentation
     let resolvedPaint = drawContext.resolvedPaint
-    let shouldFill = shouldFillPath(resolvedPaint)
+    let fillReference = fillReference(from: presentation.fill)
+    let gradient = fillReference.flatMap { drawContext.definitions.gradients[$0] }
+    let pattern = fillReference.flatMap { drawContext.definitions.patterns[$0] }
+    let shouldFill = shouldFillPath(resolvedPaint, hasFillReference: gradient != nil || pattern != nil)
     let shouldStroke = shouldStrokePath(resolvedPaint)
     let fillRule = resolvedPaint.fillRule
 
     applyPresentation(resolvedPaint, to: context)
 
-    if shouldFill, case .url(let reference) = presentation.fill ?? .none {
-        if let gradient = drawContext.definitions.gradients[reference] {
-            if drawGradient(
-                context: context,
-                path: path,
-                gradient: gradient,
-                presentation: presentation,
-                drawContext: drawContext
-            ) {
-                if shouldStroke {
-                    context.addPath(path)
-                    context.drawPath(using: .stroke)
-                }
-                return .continue
-            }
+    if let gradient,
+       resolvedPaint.fillAlpha > 0,
+       drawGradient(
+        context: context,
+        path: path,
+        gradient: gradient,
+        presentation: presentation,
+        drawContext: drawContext
+       ) {
+        if shouldStroke {
+            context.addPath(path)
+            context.drawPath(using: .stroke)
         }
+        return .continue
+    }
+
+    if let pattern,
+       resolvedPaint.fillAlpha > 0,
+       drawPattern(
+        context: context,
+        path: path,
+        pattern: pattern,
+        drawContext: drawContext
+       ) {
+        if shouldStroke {
+            context.addPath(path)
+            context.drawPath(using: .stroke)
+        }
+        return .continue
     }
 
     if shouldFill && shouldStroke {
@@ -181,11 +211,11 @@ private func applyPresentation(_ resolvedPaint: ResolvedPaint, to context: CGCon
     }
 }
 
-private func shouldFillPath(_ paint: ResolvedPaint) -> Bool {
+private func shouldFillPath(_ paint: ResolvedPaint, hasFillReference: Bool) -> Bool {
     if paint.fillAlpha <= 0 {
         return false
     }
-    return paint.fillColor != nil
+    return paint.fillColor != nil || hasFillReference
 }
 
 private func shouldStrokePath(_ paint: ResolvedPaint) -> Bool {
@@ -227,6 +257,7 @@ private func drawGradient(
     context.saveGState()
     context.addPath(path)
     context.clip()
+    context.setAlpha(CGFloat(drawContext.resolvedPaint.fillAlpha))
 
     let options: CGGradientDrawingOptions = [.drawsBeforeStartLocation, .drawsAfterEndLocation]
 
@@ -265,6 +296,369 @@ private func drawGradient(
 
     context.restoreGState()
     return true
+}
+
+private func fillReference(from fill: Fill?) -> String? {
+    switch fill {
+    case .some(.url(let reference)):
+        return reference
+    case .some(.urlWithFallback(let reference, _)):
+        return reference
+    default:
+        return nil
+    }
+}
+
+private func drawImage(
+    context: CGContext,
+    drawContext: DrawContext,
+    image: Image
+) -> DrawDirective {
+#if canImport(ImageIO)
+    guard let href = image.href,
+          let cgImage = loadImage(from: href) else {
+        return .continue
+    }
+
+    let viewRefWidth = drawContext.viewBox?.width ?? drawContext.viewSize.width?.value ?? Double(cgImage.width)
+    let viewRefHeight = drawContext.viewBox?.height ?? drawContext.viewSize.height?.value ?? Double(cgImage.height)
+
+    let x = resolveImageLength(image.x, defaultValue: 0, viewRef: viewRefWidth)
+    let y = resolveImageLength(image.y, defaultValue: 0, viewRef: viewRefHeight)
+    let width = resolveImageLength(image.width, defaultValue: Double(cgImage.width), viewRef: viewRefWidth)
+    let height = resolveImageLength(image.height, defaultValue: Double(cgImage.height), viewRef: viewRefHeight)
+
+    guard width > 0, height > 0 else { return .continue }
+
+    context.saveGState()
+    defer { context.restoreGState() }
+
+    let transform = makeTransform(from: drawContext.transforms)
+    context.concatenate(transform)
+
+    let imageRect = CGRect(x: x, y: y, width: width, height: height)
+    let imagePath = CGPath(rect: imageRect, transform: nil)
+
+    if let clipReference = drawContext.presentation.clipPath,
+       let clipPath = drawContext.definitions.clipPaths[clipReference],
+       let clipShape = buildClipPath(clipPath, definitions: drawContext.definitions, bbox: imagePath.boundingBoxOfPath) {
+        context.addPath(clipShape)
+        context.clip(using: .winding)
+    }
+
+    let opacity = drawContext.presentation.opacity ?? 1
+    context.setAlpha(CGFloat(opacity))
+    context.translateBy(x: imageRect.minX, y: imageRect.minY + imageRect.height)
+    context.scaleBy(x: 1, y: -1)
+    context.draw(cgImage, in: CGRect(x: 0, y: 0, width: imageRect.width, height: imageRect.height))
+    return .continue
+#else
+    return .continue
+#endif
+}
+
+#if canImport(ImageIO)
+private func loadImage(from href: String) -> CGImage? {
+    if href.hasPrefix("data:") {
+        return loadDataImage(from: href)
+    }
+    return nil
+}
+
+private func loadDataImage(from href: String) -> CGImage? {
+    let parts = href.split(separator: ",", maxSplits: 1, omittingEmptySubsequences: false)
+    guard parts.count == 2,
+          parts[0].contains("base64"),
+          let data = Data(base64Encoded: String(parts[1])) else {
+        return nil
+    }
+
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+        return nil
+    }
+
+    return CGImageSourceCreateImageAtIndex(source, 0, nil)
+}
+#endif
+
+private func resolveImageLength(_ length: Length?, defaultValue: Double, viewRef: Double) -> Double {
+    guard let length else { return defaultValue }
+    switch length.unit {
+    case .percent:
+        return viewRef * length.value / 100
+    default:
+        return length.value
+    }
+}
+
+private func buildClipPath(
+    _ clipPath: ClipPath,
+    definitions: Definitions,
+    bbox: CGRect
+) -> CGPath? {
+    let units = clipPath.clipPathUnits ?? .userSpaceOnUse
+    let baseTransform: CGAffineTransform
+    switch units {
+    case .objectBoundingBox:
+        baseTransform = CGAffineTransform(translationX: bbox.minX, y: bbox.minY)
+            .scaledBy(x: bbox.width, y: bbox.height)
+    case .userSpaceOnUse:
+        baseTransform = .identity
+    }
+
+    let path = CGMutablePath()
+    for child in clipPath.children {
+        appendClipElement(child, into: path, transform: baseTransform, definitions: definitions)
+    }
+    return path.isEmpty ? nil : path.copy()
+}
+
+private func appendClipElement(
+    _ element: any GraphicElement,
+    into path: CGMutablePath,
+    transform: CGAffineTransform,
+    definitions: Definitions
+) {
+    if let group = element as? Group {
+        let groupTransform = transform.concatenating(makeTransform(from: group.presentation.transform ?? []))
+        for child in group.children {
+            appendClipElement(child, into: path, transform: groupTransform, definitions: definitions)
+        }
+        return
+    }
+
+    if let use = element as? Use {
+        var useTransform = transform
+        if let local = use.presentation.transform {
+            useTransform = useTransform.concatenating(makeTransform(from: local))
+        }
+        if let x = use.x?.value, let y = use.y?.value {
+            useTransform = useTransform.translatedBy(x: x, y: y)
+        } else if let x = use.x?.value {
+            useTransform = useTransform.translatedBy(x: x, y: 0)
+        } else if let y = use.y?.value {
+            useTransform = useTransform.translatedBy(x: 0, y: y)
+        }
+        if let reference = use.href,
+           let resolved = definitions.elements[reference] {
+            appendClipElement(resolved, into: path, transform: useTransform, definitions: definitions)
+        }
+        return
+    }
+
+    let localPath: CGPath?
+    switch element {
+    case let rect as Rect:
+        let rx = rect.rx?.value ?? rect.ry?.value ?? 0
+        let ry = rect.ry?.value ?? rect.rx?.value ?? 0
+        let rectFrame = CGRect(x: rect.x.value, y: rect.y.value, width: rect.width.value, height: rect.height.value)
+        if rx > 0 || ry > 0 {
+            localPath = CGPath(roundedRect: rectFrame, cornerWidth: rx, cornerHeight: ry, transform: nil)
+        } else {
+            localPath = CGPath(rect: rectFrame, transform: nil)
+        }
+    case let circle as Circle:
+        let rectFrame = CGRect(
+            x: circle.cx.value - circle.r.value,
+            y: circle.cy.value - circle.r.value,
+            width: circle.r.value * 2,
+            height: circle.r.value * 2
+        )
+        localPath = CGPath(ellipseIn: rectFrame, transform: nil)
+    case let ellipse as Ellipse:
+        let rectFrame = CGRect(
+            x: ellipse.cx.value - ellipse.rx.value,
+            y: ellipse.cy.value - ellipse.ry.value,
+            width: ellipse.rx.value * 2,
+            height: ellipse.ry.value * 2
+        )
+        localPath = CGPath(ellipseIn: rectFrame, transform: nil)
+    case let line as Line:
+        let linePath = CGMutablePath()
+        linePath.move(to: CGPoint(x: line.x1.value, y: line.y1.value))
+        linePath.addLine(to: CGPoint(x: line.x2.value, y: line.y2.value))
+        localPath = linePath
+    case let polyline as Polyline:
+        let linePath = CGMutablePath()
+        if let first = polyline.points.first {
+            linePath.move(to: CGPoint(x: first.x, y: first.y))
+            for point in polyline.points.dropFirst() {
+                linePath.addLine(to: CGPoint(x: point.x, y: point.y))
+            }
+        }
+        localPath = linePath
+    case let polygon as Polygon:
+        let polyPath = CGMutablePath()
+        if let first = polygon.points.first {
+            polyPath.move(to: CGPoint(x: first.x, y: first.y))
+            for point in polygon.points.dropFirst() {
+                polyPath.addLine(to: CGPoint(x: point.x, y: point.y))
+            }
+            polyPath.closeSubpath()
+        }
+        localPath = polyPath
+    case let pathElement as Path:
+        localPath = buildPath(from: pathElement.segments)
+    default:
+        localPath = nil
+    }
+
+    guard let localPath else { return }
+
+    var elementTransform = transform
+    if let transforms = element.presentation.transform {
+        elementTransform = elementTransform.concatenating(makeTransform(from: transforms))
+    }
+    path.addPath(localPath, transform: elementTransform)
+}
+
+private func drawPattern(
+    context: CGContext,
+    path: CGPath,
+    pattern: Pattern,
+    drawContext: DrawContext
+) -> Bool {
+    let bbox = path.boundingBoxOfPath
+    let viewRefWidth = drawContext.viewBox?.width ?? drawContext.viewSize.width?.value ?? bbox.width
+    let viewRefHeight = drawContext.viewBox?.height ?? drawContext.viewSize.height?.value ?? bbox.height
+
+    let units = pattern.patternUnits ?? .objectBoundingBox
+    let contentUnits = pattern.patternContentUnits ?? .userSpaceOnUse
+
+    let tileX = resolvePatternPosition(
+        pattern.x,
+        bbox: bbox,
+        viewRef: viewRefWidth,
+        units: units,
+        defaultValue: 0,
+        axis: .x
+    )
+    let tileY = resolvePatternPosition(
+        pattern.y,
+        bbox: bbox,
+        viewRef: viewRefHeight,
+        units: units,
+        defaultValue: 0,
+        axis: .y
+    )
+    let tileWidth = resolvePatternSize(
+        pattern.width,
+        bbox: bbox,
+        viewRef: viewRefWidth,
+        units: units,
+        defaultValue: 0,
+        axis: .x
+    )
+    let tileHeight = resolvePatternSize(
+        pattern.height,
+        bbox: bbox,
+        viewRef: viewRefHeight,
+        units: units,
+        defaultValue: 0,
+        axis: .y
+    )
+
+    guard tileWidth > 0, tileHeight > 0 else { return false }
+
+    context.saveGState()
+    context.addPath(path)
+    context.clip()
+
+    var startX = tileX
+    while startX > bbox.minX {
+        startX -= tileWidth
+    }
+
+    var startY = tileY
+    while startY > bbox.minY {
+        startY -= tileHeight
+    }
+
+    let patternTransform = makeTransform(from: pattern.patternTransform ?? [])
+    let patternSVG = SVG(
+        width: pattern.width,
+        height: pattern.height,
+        viewBox: pattern.viewBox,
+        preserveAspectRatio: pattern.preserveAspectRatio,
+        children: pattern.children,
+        definitions: drawContext.definitions
+    )
+    let patternRenderer = CGContextRenderer(context: context)
+
+    var y = startY
+    while y < bbox.maxY {
+        var x = startX
+        while x < bbox.maxX {
+            context.saveGState()
+            context.translateBy(x: x, y: y)
+            if !patternTransform.isIdentity {
+                context.concatenate(patternTransform)
+            }
+            if contentUnits == .objectBoundingBox {
+                context.scaleBy(x: bbox.width, y: bbox.height)
+            }
+            patternSVG.walk(callback: patternRenderer)
+            context.restoreGState()
+            x += tileWidth
+        }
+        y += tileHeight
+    }
+
+    context.restoreGState()
+    return true
+}
+
+private enum PatternAxis {
+    case x
+    case y
+}
+
+private func resolvePatternPosition(
+    _ length: Length?,
+    bbox: CGRect,
+    viewRef: Double,
+    units: GradientUnits,
+    defaultValue: Double,
+    axis: PatternAxis
+) -> Double {
+    let value = length?.value ?? defaultValue
+    switch units {
+    case .objectBoundingBox:
+        let fraction = length?.unit == .percent ? value / 100 : value
+        switch axis {
+        case .x:
+            return bbox.minX + bbox.width * fraction
+        case .y:
+            return bbox.minY + bbox.height * fraction
+        }
+    case .userSpaceOnUse:
+        if length?.unit == .percent {
+            return viewRef * (value / 100)
+        }
+        return value
+    }
+}
+
+private func resolvePatternSize(
+    _ length: Length?,
+    bbox: CGRect,
+    viewRef: Double,
+    units: GradientUnits,
+    defaultValue: Double,
+    axis: PatternAxis
+) -> Double {
+    let value = length?.value ?? defaultValue
+    switch units {
+    case .objectBoundingBox:
+        let fraction = length?.unit == .percent ? value / 100 : value
+        let size = axis == .x ? bbox.width : bbox.height
+        return size * fraction
+    case .userSpaceOnUse:
+        if length?.unit == .percent {
+            return viewRef * (value / 100)
+        }
+        return value
+    }
 }
 
 private func resolveCoordinate(

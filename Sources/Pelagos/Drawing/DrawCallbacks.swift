@@ -208,7 +208,7 @@ private func walkElement(
         let directive = callback.handle(event: .beginSwitch(switchNode), context: childContext)
         if directive == .stop { return false }
         if directive != .skipChildren {
-            if walkChildren(switchNode.children, callback: callback, context: &childContext, options: options) == false {
+            if walkSwitchChildren(switchNode.children, callback: callback, context: &childContext, options: options) == false {
                 return false
             }
         }
@@ -334,6 +334,16 @@ private func buildTextRuns(from content: [TextContent], basePresentation: Presen
         }
     }
     return runs
+}
+
+private func walkSwitchChildren(
+    _ children: [any GraphicElement],
+    callback: DrawCallback,
+    context: inout DrawContext,
+    options: DrawOptions
+) -> Bool {
+    guard let first = children.first else { return true }
+    return walkElement(first, callback: callback, context: context, options: options)
 }
 
 private func resolvePaint(from presentation: PresentationAttributes) -> ResolvedPaint {
