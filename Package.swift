@@ -12,7 +12,8 @@ let package = Package(
         .visionOS(.v2)
     ],
     products: [
-        .library(name: "Pelagos", targets: ["Pelagos"])
+        .library(name: "Pelagos", targets: ["Pelagos"]),
+        .executable(name: "PelagosCLI", targets: ["PelagosCLI"])
     ],
     dependencies: [
         .package(url: "https://github.com/tomasf/Nodal.git", from: "0.1.0")
@@ -21,6 +22,11 @@ let package = Package(
         .target(
             name: "Pelagos",
             dependencies: ["Nodal"],
+            swiftSettings: [.interoperabilityMode(.Cxx)]
+        ),
+        .executableTarget(
+            name: "PelagosCLI",
+            dependencies: ["Pelagos"],
             swiftSettings: [.interoperabilityMode(.Cxx)]
         ),
         .testTarget(

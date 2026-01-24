@@ -69,6 +69,9 @@ struct PresentationParser {
         attrs.display = AttributeParser.parseEnum(node[attribute: "display"], type: DisplayMode.self)
         attrs.visibility = AttributeParser.parseEnum(node[attribute: "visibility"], type: Visibility.self)
 
+        // Color (for currentColor)
+        attrs.color = AttributeParser.parseColor(node[attribute: "color"])
+
         // Transform
         attrs.transform = AttributeParser.parseTransform(node[attribute: "transform"])
 
@@ -142,6 +145,8 @@ struct PresentationParser {
                 attrs.display = AttributeParser.parseEnum(value, type: DisplayMode.self)
             case "visibility":
                 attrs.visibility = AttributeParser.parseEnum(value, type: Visibility.self)
+            case "color":
+                attrs.color = AttributeParser.parseColor(value)
             case "transform":
                 attrs.transform = AttributeParser.parseTransform(value)
             case "clip-path":

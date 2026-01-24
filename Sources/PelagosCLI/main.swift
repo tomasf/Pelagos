@@ -55,8 +55,7 @@ do {
             )
         }
 
-        let renderer = CGContextRenderer(context: context)
-        svg.walk(callback: renderer)
+        svg.render(to: context)
 
         guard let image = context.makeImage() else {
             fatalError("Failed to create CGImage.")

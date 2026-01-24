@@ -22,6 +22,9 @@ public struct PresentationAttributes: Hashable, Sendable {
     public var display: DisplayMode?
     public var visibility: Visibility?
 
+    // Color (used by currentColor)
+    public var color: Color?
+
     // Transform
     public var transform: [Transform]?
 
@@ -66,6 +69,8 @@ public struct PresentationAttributes: Hashable, Sendable {
         if let v = other.opacity { result.opacity = v }
         if let v = other.display { result.display = v }
         if let v = other.visibility { result.visibility = v }
+
+        if let v = other.color { result.color = v }
 
         if let v = other.transform { result.transform = v }
 
