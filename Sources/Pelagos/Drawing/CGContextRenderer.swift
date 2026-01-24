@@ -21,18 +21,16 @@ public final class CGContextRenderer: DrawCallback, @unchecked Sendable {
         case .beginSVG, .endSVG, .beginGroup, .endGroup, .beginAnchor, .endAnchor, .beginSwitch, .endSwitch, .defs, .use:
             return .continue
 
-        case .drawRect(let rect):
-            let refs = resolveViewReferences(drawContext)
-            let x = resolveLength(rect.x, viewRef: refs.width, fontSize: refs.fontSize)
-            let y = resolveLength(rect.y, viewRef: refs.height, fontSize: refs.fontSize)
-            let width = resolveLength(rect.width, viewRef: refs.width, fontSize: refs.fontSize)
-            let height = resolveLength(rect.height, viewRef: refs.height, fontSize: refs.fontSize)
-            let rx = resolveLength(rect.rx, viewRef: refs.width, fontSize: refs.fontSize)
-            let ry = resolveLength(rect.ry, viewRef: refs.height, fontSize: refs.fontSize)
+        case .drawRect(_, let resolved):
             return drawShape(context: context, drawContext: drawContext) {
-                let cornerX = rx > 0 ? rx : (rect.ry == nil ? 0 : ry)
-                let cornerY = ry > 0 ? ry : (rect.rx == nil ? 0 : rx)
-                let rectFrame = CGRect(x: x, y: y, width: width, height: height)
+                let rectFrame = CGRect(
+                    x: resolved.x,
+                    y: resolved.y,
+                    width: resolved.width,
+                    height: resolved.height
+                )
+                let cornerX = resolved.rx
+                let cornerY = resolved.ry
                 if cornerX > 0 || cornerY > 0 {
                     $0.addPath(CGPath(roundedRect: rectFrame, cornerWidth: cornerX, cornerHeight: cornerY, transform: nil))
                 } else {
@@ -40,62 +38,48 @@ public final class CGContextRenderer: DrawCallback, @unchecked Sendable {
                 }
             }
 
-        case .drawCircle(let circle):
-            let refs = resolveViewReferences(drawContext)
-            let cx = resolveLength(circle.cx, viewRef: refs.width, fontSize: refs.fontSize)
-            let cy = resolveLength(circle.cy, viewRef: refs.height, fontSize: refs.fontSize)
-            let r = resolveLength(circle.r, viewRef: min(refs.width, refs.height), fontSize: refs.fontSize)
+        case .drawCircle(_, let resolved):
             return drawShape(context: context, drawContext: drawContext) {
                 let rect = CGRect(
-                    x: cx - r,
-                    y: cy - r,
-                    width: r * 2,
-                    height: r * 2
+                    x: resolved.cx - resolved.r,
+                    y: resolved.cy - resolved.r,
+                    width: resolved.r * 2,
+                    height: resolved.r * 2
                 )
                 $0.addEllipse(in: rect)
             }
 
-        case .drawEllipse(let ellipse):
-            let refs = resolveViewReferences(drawContext)
-            let cx = resolveLength(ellipse.cx, viewRef: refs.width, fontSize: refs.fontSize)
-            let cy = resolveLength(ellipse.cy, viewRef: refs.height, fontSize: refs.fontSize)
-            let rx = resolveLength(ellipse.rx, viewRef: refs.width, fontSize: refs.fontSize)
-            let ry = resolveLength(ellipse.ry, viewRef: refs.height, fontSize: refs.fontSize)
+        case .drawEllipse(_, let resolved):
             return drawShape(context: context, drawContext: drawContext) {
                 let rect = CGRect(
-                    x: cx - rx,
-                    y: cy - ry,
-                    width: rx * 2,
-                    height: ry * 2
+                    x: resolved.cx - resolved.rx,
+                    y: resolved.cy - resolved.ry,
+                    width: resolved.rx * 2,
+                    height: resolved.ry * 2
                 )
                 $0.addEllipse(in: rect)
             }
 
-        case .drawLine(let line):
-            let refs = resolveViewReferences(drawContext)
-            let x1 = resolveLength(line.x1, viewRef: refs.width, fontSize: refs.fontSize)
-            let y1 = resolveLength(line.y1, viewRef: refs.height, fontSize: refs.fontSize)
-            let x2 = resolveLength(line.x2, viewRef: refs.width, fontSize: refs.fontSize)
-            let y2 = resolveLength(line.y2, viewRef: refs.height, fontSize: refs.fontSize)
+        case .drawLine(_, let resolved):
             return drawShape(context: context, drawContext: drawContext) {
-                $0.move(to: CGPoint(x: x1, y: y1))
-                $0.addLine(to: CGPoint(x: x2, y: y2))
+                $0.move(to: CGPoint(x: resolved.x1, y: resolved.y1))
+                $0.addLine(to: CGPoint(x: resolved.x2, y: resolved.y2))
             }
 
-        case .drawPolyline(let polyline):
+        case .drawPolyline(_, let resolved):
             return drawShape(context: context, drawContext: drawContext) {
-                guard let first = polyline.points.first else { return }
+                guard let first = resolved.points.first else { return }
                 $0.move(to: CGPoint(x: first.x, y: first.y))
-                for point in polyline.points.dropFirst() {
+                for point in resolved.points.dropFirst() {
                     $0.addLine(to: CGPoint(x: point.x, y: point.y))
                 }
             }
 
-        case .drawPolygon(let polygon):
+        case .drawPolygon(_, let resolved):
             return drawShape(context: context, drawContext: drawContext) {
-                guard let first = polygon.points.first else { return }
+                guard let first = resolved.points.first else { return }
                 $0.move(to: CGPoint(x: first.x, y: first.y))
-                for point in polygon.points.dropFirst() {
+                for point in resolved.points.dropFirst() {
                     $0.addLine(to: CGPoint(x: point.x, y: point.y))
                 }
                 $0.closeSubpath()
@@ -108,8 +92,8 @@ public final class CGContextRenderer: DrawCallback, @unchecked Sendable {
 
         case .drawText(let text, let runs):
             return drawText(context: context, drawContext: drawContext, text: text, runs: runs)
-        case .drawImage(let image):
-            return drawImage(context: context, drawContext: drawContext, image: image)
+        case .drawImage(let image, let resolved):
+            return drawImage(context: context, drawContext: drawContext, image: image, resolved: resolved)
         }
     }
 }
@@ -336,11 +320,12 @@ private func fillReference(from fill: Fill?) -> String? {
 private func drawImage(
     context: CGContext,
     drawContext: DrawContext,
-    image: Image
+    image: Image,
+    resolved: ResolvedImage?
 ) -> DrawDirective {
 #if canImport(ImageIO)
-    guard let href = image.href,
-          let cgImage = loadImage(from: href) else {
+    guard let resolved,
+          let cgImage = loadImage(from: resolved.data) else {
         return .continue
     }
 
@@ -382,21 +367,7 @@ private func drawImage(
 }
 
 #if canImport(ImageIO)
-private func loadImage(from href: String) -> CGImage? {
-    if href.hasPrefix("data:") {
-        return loadDataImage(from: href)
-    }
-    return nil
-}
-
-private func loadDataImage(from href: String) -> CGImage? {
-    let parts = href.split(separator: ",", maxSplits: 1, omittingEmptySubsequences: false)
-    guard parts.count == 2,
-          parts[0].contains("base64"),
-          let data = Data(base64Encoded: String(parts[1])) else {
-        return nil
-    }
-
+private func loadImage(from data: Data) -> CGImage? {
     guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
         return nil
     }
@@ -408,27 +379,6 @@ private func loadDataImage(from href: String) -> CGImage? {
 private func resolveImageLength(_ length: Length?, defaultValue: Double, viewRef: Double) -> Double {
     guard let length else { return defaultValue }
     return length.resolvedValue(viewport: viewRef)
-}
-
-private func resolveViewReferences(_ drawContext: DrawContext) -> (width: Double, height: Double, fontSize: Double) {
-    let width = drawContext.viewBox?.width
-        ?? drawContext.viewSize.width?.resolvedValue()
-        ?? 0
-    let height = drawContext.viewBox?.height
-        ?? drawContext.viewSize.height?.resolvedValue()
-        ?? 0
-    let fontSize = resolveFontSize(drawContext.presentation.fontSize, viewRef: height, fallback: 16)
-    return (width, height, fontSize)
-}
-
-private func resolveLength(
-    _ length: Length?,
-    viewRef: Double,
-    fontSize: Double,
-    defaultValue: Double = 0
-) -> Double {
-    guard let length else { return defaultValue }
-    return length.resolvedValue(fontSize: fontSize, viewport: viewRef)
 }
 
 private func drawText(

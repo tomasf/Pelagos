@@ -109,17 +109,64 @@ public enum DrawEvent: Sendable {
     case endAnchor(Anchor)
     case beginSwitch(Switch)
     case endSwitch(Switch)
-    case drawRect(Rect)
-    case drawCircle(Circle)
-    case drawEllipse(Ellipse)
-    case drawLine(Line)
-    case drawPolyline(Polyline)
-    case drawPolygon(Polygon)
+    case drawRect(Rect, resolved: ResolvedRect)
+    case drawCircle(Circle, resolved: ResolvedCircle)
+    case drawEllipse(Ellipse, resolved: ResolvedEllipse)
+    case drawLine(Line, resolved: ResolvedLine)
+    case drawPolyline(Polyline, resolved: ResolvedPolyline)
+    case drawPolygon(Polygon, resolved: ResolvedPolygon)
     case drawPath(Path)
     case drawText(Text, runs: [TextRun])
-    case drawImage(Image)
+    case drawImage(Image, resolved: ResolvedImage?)
     case use(Use, resolved: (any GraphicElement)?)
     case defs(Defs)
+}
+
+public struct ResolvedImage: Sendable {
+    public var data: Data
+    public var mimeType: String?
+
+    public init(data: Data, mimeType: String? = nil) {
+        self.data = data
+        self.mimeType = mimeType
+    }
+}
+
+public struct ResolvedRect: Sendable {
+    public var x: Double
+    public var y: Double
+    public var width: Double
+    public var height: Double
+    public var rx: Double
+    public var ry: Double
+}
+
+public struct ResolvedCircle: Sendable {
+    public var cx: Double
+    public var cy: Double
+    public var r: Double
+}
+
+public struct ResolvedEllipse: Sendable {
+    public var cx: Double
+    public var cy: Double
+    public var rx: Double
+    public var ry: Double
+}
+
+public struct ResolvedLine: Sendable {
+    public var x1: Double
+    public var y1: Double
+    public var x2: Double
+    public var y2: Double
+}
+
+public struct ResolvedPolyline: Sendable {
+    public var points: [Point]
+}
+
+public struct ResolvedPolygon: Sendable {
+    public var points: [Point]
 }
 
 public protocol DrawCallback: Sendable {
@@ -261,22 +308,28 @@ private func walkElement(
     let leafContext = inheritContext(context, element: element, options: options)
 
     if let rect = element as? Rect {
-        return callback.handle(event: .drawRect(rect), context: leafContext) != .stop
+        let resolved = resolveRect(rect, context: leafContext)
+        return callback.handle(event: .drawRect(rect, resolved: resolved), context: leafContext) != .stop
     }
     if let circle = element as? Circle {
-        return callback.handle(event: .drawCircle(circle), context: leafContext) != .stop
+        let resolved = resolveCircle(circle, context: leafContext)
+        return callback.handle(event: .drawCircle(circle, resolved: resolved), context: leafContext) != .stop
     }
     if let ellipse = element as? Ellipse {
-        return callback.handle(event: .drawEllipse(ellipse), context: leafContext) != .stop
+        let resolved = resolveEllipse(ellipse, context: leafContext)
+        return callback.handle(event: .drawEllipse(ellipse, resolved: resolved), context: leafContext) != .stop
     }
     if let line = element as? Line {
-        return callback.handle(event: .drawLine(line), context: leafContext) != .stop
+        let resolved = resolveLine(line, context: leafContext)
+        return callback.handle(event: .drawLine(line, resolved: resolved), context: leafContext) != .stop
     }
     if let polyline = element as? Polyline {
-        return callback.handle(event: .drawPolyline(polyline), context: leafContext) != .stop
+        let resolved = ResolvedPolyline(points: polyline.points)
+        return callback.handle(event: .drawPolyline(polyline, resolved: resolved), context: leafContext) != .stop
     }
     if let polygon = element as? Polygon {
-        return callback.handle(event: .drawPolygon(polygon), context: leafContext) != .stop
+        let resolved = ResolvedPolygon(points: polygon.points)
+        return callback.handle(event: .drawPolygon(polygon, resolved: resolved), context: leafContext) != .stop
     }
     if let path = element as? Path {
         return callback.handle(event: .drawPath(path), context: leafContext) != .stop
@@ -286,10 +339,89 @@ private func walkElement(
         return callback.handle(event: .drawText(text, runs: runs), context: leafContext) != .stop
     }
     if let image = element as? Image {
-        return callback.handle(event: .drawImage(image), context: leafContext) != .stop
+        let resolved = resolveImage(from: image.href)
+        return callback.handle(event: .drawImage(image, resolved: resolved), context: leafContext) != .stop
     }
 
     return true
+}
+
+private func resolveImage(from href: String?) -> ResolvedImage? {
+    guard let href, href.hasPrefix("data:") else { return nil }
+    return decodeDataURL(href)
+}
+
+private func resolveRect(_ rect: Rect, context: DrawContext) -> ResolvedRect {
+    let refs = resolveViewReferences(context)
+    let x = resolveLength(rect.x, viewRef: refs.width, fontSize: refs.fontSize)
+    let y = resolveLength(rect.y, viewRef: refs.height, fontSize: refs.fontSize)
+    let width = resolveLength(rect.width, viewRef: refs.width, fontSize: refs.fontSize)
+    let height = resolveLength(rect.height, viewRef: refs.height, fontSize: refs.fontSize)
+    let rx = resolveLength(rect.rx ?? rect.ry, viewRef: refs.width, fontSize: refs.fontSize)
+    let ry = resolveLength(rect.ry ?? rect.rx, viewRef: refs.height, fontSize: refs.fontSize)
+    return ResolvedRect(x: x, y: y, width: width, height: height, rx: rx, ry: ry)
+}
+
+private func resolveCircle(_ circle: Circle, context: DrawContext) -> ResolvedCircle {
+    let refs = resolveViewReferences(context)
+    let cx = resolveLength(circle.cx, viewRef: refs.width, fontSize: refs.fontSize)
+    let cy = resolveLength(circle.cy, viewRef: refs.height, fontSize: refs.fontSize)
+    let r = resolveLength(circle.r, viewRef: min(refs.width, refs.height), fontSize: refs.fontSize)
+    return ResolvedCircle(cx: cx, cy: cy, r: r)
+}
+
+private func resolveEllipse(_ ellipse: Ellipse, context: DrawContext) -> ResolvedEllipse {
+    let refs = resolveViewReferences(context)
+    let cx = resolveLength(ellipse.cx, viewRef: refs.width, fontSize: refs.fontSize)
+    let cy = resolveLength(ellipse.cy, viewRef: refs.height, fontSize: refs.fontSize)
+    let rx = resolveLength(ellipse.rx, viewRef: refs.width, fontSize: refs.fontSize)
+    let ry = resolveLength(ellipse.ry, viewRef: refs.height, fontSize: refs.fontSize)
+    return ResolvedEllipse(cx: cx, cy: cy, rx: rx, ry: ry)
+}
+
+private func resolveLine(_ line: Line, context: DrawContext) -> ResolvedLine {
+    let refs = resolveViewReferences(context)
+    let x1 = resolveLength(line.x1, viewRef: refs.width, fontSize: refs.fontSize)
+    let y1 = resolveLength(line.y1, viewRef: refs.height, fontSize: refs.fontSize)
+    let x2 = resolveLength(line.x2, viewRef: refs.width, fontSize: refs.fontSize)
+    let y2 = resolveLength(line.y2, viewRef: refs.height, fontSize: refs.fontSize)
+    return ResolvedLine(x1: x1, y1: y1, x2: x2, y2: y2)
+}
+
+private func resolveViewReferences(_ context: DrawContext) -> (width: Double, height: Double, fontSize: Double) {
+    let width = context.viewBox?.width
+        ?? context.viewSize.width?.resolvedValue()
+        ?? 0
+    let height = context.viewBox?.height
+        ?? context.viewSize.height?.resolvedValue()
+        ?? 0
+    let fontSize = context.presentation.fontSize?.resolvedValue(viewport: height) ?? 16
+    return (width, height, fontSize)
+}
+
+private func resolveLength(_ length: Length?, viewRef: Double, fontSize: Double) -> Double {
+    guard let length else { return 0 }
+    return length.resolvedValue(fontSize: fontSize, viewport: viewRef)
+}
+
+private func decodeDataURL(_ href: String) -> ResolvedImage? {
+    let parts = href.split(separator: ",", maxSplits: 1, omittingEmptySubsequences: false)
+    guard parts.count == 2 else { return nil }
+
+    let meta = String(parts[0])
+    let payload = String(parts[1])
+    guard meta.contains("base64"),
+          let data = Data(base64Encoded: payload) else {
+        return nil
+    }
+
+    let mimeType = meta
+        .dropFirst("data:".count)
+        .split(separator: ";", maxSplits: 1)
+        .first
+        .map(String.init)
+
+    return ResolvedImage(data: data, mimeType: mimeType)
 }
 
 private func inheritContext(
