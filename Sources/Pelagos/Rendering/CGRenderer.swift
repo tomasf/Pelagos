@@ -1,12 +1,8 @@
 #if canImport(CoreGraphics)
 import Foundation
 import CoreGraphics
-#if canImport(CoreText)
 import CoreText
-#endif
-#if canImport(ImageIO)
 import ImageIO
-#endif
 
 /// A CoreGraphics-based renderer for SVG content
 public final class CGRenderer: SVGRenderer {
@@ -77,15 +73,6 @@ public final class CGRenderer: SVGRenderer {
         let space = CGColorSpace(name: CGColorSpace.displayP3) ?? CGColorSpaceCreateDeviceRGB()
         let components = [CGFloat(r), CGFloat(g), CGFloat(b), CGFloat(a)]
         return CGColor(colorSpace: space, components: components) ?? CGColor(red: CGFloat(r), green: CGFloat(g), blue: CGFloat(b), alpha: CGFloat(a))
-    }
-
-    public func makeColor(from resolved: ResolvedColor) -> CGColor {
-        CGColor(
-            red: CGFloat(resolved.red),
-            green: CGFloat(resolved.green),
-            blue: CGFloat(resolved.blue),
-            alpha: CGFloat(resolved.alpha)
-        )
     }
 
     // MARK: - Drawing Operations
@@ -292,7 +279,6 @@ public final class CGRenderer: SVGRenderer {
     }
 
     public func drawText(_ text: ResolvedTextContent) {
-        #if canImport(CoreText)
         context.saveGState()
         defer { context.restoreGState() }
 
@@ -340,11 +326,9 @@ public final class CGRenderer: SVGRenderer {
         context.textPosition = .zero
 
         CTLineDraw(line, context)
-        #endif
     }
 
     public func drawImage(_ image: ResolvedImageContent) {
-        #if canImport(ImageIO)
         guard let provider = CGDataProvider(data: image.data as CFData),
               let source = CGImageSourceCreateWithDataProvider(provider, nil),
               let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
@@ -360,7 +344,6 @@ public final class CGRenderer: SVGRenderer {
         context.translateBy(x: rect.minX, y: rect.maxY)
         context.scaleBy(x: 1, y: -1)
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: rect.width, height: rect.height))
-        #endif
     }
 
     // MARK: - State Management
@@ -384,12 +367,6 @@ public final class CGRenderer: SVGRenderer {
 
     public func setOpacity(_ opacity: Double) {
         context.setAlpha(CGFloat(opacity))
-    }
-
-    // MARK: - Helper
-
-    private func cgTransform(from transform: AffineTransform) -> CGAffineTransform {
-        transform.cgTransform
     }
 }
 
@@ -448,8 +425,7 @@ private extension LineJoin {
 public extension SVG {
     /// Render this SVG to a CGContext
     func render(to context: CGContext) {
-        let renderer = CGRenderer(context: context)
-        render(with: renderer)
+        render(with: CGRenderer(context: context))
     }
 }
 #endif
