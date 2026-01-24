@@ -46,30 +46,6 @@ enum SVGAttributeName {
 }
 
 extension Node {
-    func isSVGElement(_ name: ExpandedName) -> Bool {
-        let expanded = expandedName
-        if expanded == name {
-            return true
-        }
-        return expanded.namespaceName == nil && expanded.localName == name.localName
-    }
-
-    func isSVGElement(_ localName: String) -> Bool {
-        let expanded = expandedName
-        guard expanded.localName == localName else { return false }
-        return expanded.namespaceName == nil || expanded.namespaceName == SVGNamespace.svg
-    }
-
-    func svgAttribute(_ localName: String) -> String? {
-        if let value = self[attribute: localName] {
-            return value
-        }
-        if let value = self[attribute: ExpandedName(namespaceName: SVGNamespace.svg, localName: localName)] {
-            return value
-        }
-        return nil
-    }
-
     func xlinkAttribute(_ localName: String) -> String? {
         self[attribute: ExpandedName(namespaceName: SVGNamespace.xlink, localName: localName)]
     }

@@ -257,7 +257,7 @@ enum ElementParsers {
         let result = node[attribute: "result"]
 
         let localName = node.localName
-        guard node.isSVGElement(localName) else { return nil }
+        guard node.expandedName.namespaceName == SVGNamespace.svg else { return nil }
 
         switch localName {
         case "feGaussianBlur":
@@ -375,7 +375,7 @@ enum ElementParsers {
     // MARK: - Helper
 
     private static func parseHref(from node: Node) -> String? {
-        let href = node.svgAttribute("href") ?? node.xlinkAttribute("href")
+        let href = node[attribute: "href"] ?? node.xlinkAttribute("href")
         // Remove # prefix for local references
         if let href = href, href.hasPrefix("#") {
             return String(href.dropFirst())

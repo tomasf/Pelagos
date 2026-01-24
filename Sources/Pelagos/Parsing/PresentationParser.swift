@@ -360,14 +360,14 @@ struct PresentationParser {
     private static func matchesTagName(_ tagName: String, node: Node) -> Bool {
         let (prefix, localName) = splitQualifiedName(tagName)
 
-        guard node.localName == localName else { return false }
-
         if let prefix {
+            guard node.localName == localName else { return false }
             guard let namespaceURI = node.namespacesInScope[prefix] else { return false }
             return node.expandedName.namespaceName == namespaceURI
         }
 
-        return true
+        return node.expandedName.namespaceName == SVGNamespace.svg &&
+            node.localName == localName
     }
 
     private static func splitQualifiedName(_ name: String) -> (prefix: String?, localName: String) {
