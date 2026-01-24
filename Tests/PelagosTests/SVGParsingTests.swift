@@ -298,4 +298,93 @@ struct SVGParsingTests {
             Issue.record("Expected Polygon")
         }
     }
+
+    @Test func `applies CSS selectors with descendant and attribute rules`() throws {
+        let parser = SVGParser()
+        let svg = try parser.parse(string: """
+            <svg>
+                <style>
+                    rect { fill: red; }
+                    g .accent { fill: blue; }
+                    #target { fill: green; }
+                    [aria-label="special"] { stroke: #00ff00; }
+                </style>
+                <g>
+                    <rect id="target" class="accent" aria-label="special" width="10" height="10"/>
+                    <rect class="accent" width="10" height="10" x="10"/>
+                </g>
+            </svg>
+            """)
+
+        guard let group = svg.children.first as? Group else {
+            Issue.record("Expected Group")
+            return
+        }
+
+        guard group.children.count == 2 else {
+            Issue.record("Expected two rect elements")
+            return
+        }
+
+        guard let target = group.children[0] as? Rect,
+              let accent = group.children[1] as? Rect else {
+            Issue.record("Expected Rect elements")
+            return
+        }
+
+        if case .color(let color)? = target.presentation.fill {
+            #expect(color == Color.namedColors["green"])
+        } else {
+            Issue.record("Expected target fill to be green")
+        }
+
+        if case .color(let color)? = target.presentation.stroke {
+            #expect(color == Color.namedColors["lime"])
+        } else {
+            Issue.record("Expected target stroke to be lime")
+        }
+
+        if case .color(let color)? = accent.presentation.fill {
+            #expect(color == Color.namedColors["blue"])
+        } else {
+            Issue.record("Expected accent fill to be blue")
+        }
+    }
+
+    @Test func `resolves href inheritance for gradients and patterns`() throws {
+        let parser = SVGParser()
+        let svg = try parser.parse(string: """
+            <svg>
+                <defs>
+                    <linearGradient id="base" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="red"/>
+                        <stop offset="100%" stop-color="blue"/>
+                    </linearGradient>
+                    <linearGradient id="ref" href="#base"/>
+                    <pattern id="patternBase" width="10" height="10">
+                        <rect width="10" height="10"/>
+                    </pattern>
+                    <pattern id="patternRef" href="#patternBase"/>
+                </defs>
+                <rect fill="url(#ref)" width="10" height="10"/>
+            </svg>
+            """)
+
+        guard let gradient = svg.definitions.gradients["ref"] as? LinearGradient else {
+            Issue.record("Expected resolved LinearGradient")
+            return
+        }
+
+        #expect(gradient.stops.count == 2)
+        #expect(gradient.x2?.value == 100)
+        #expect(gradient.x2?.unit == .percent)
+
+        guard let pattern = svg.definitions.patterns["patternRef"] else {
+            Issue.record("Expected resolved Pattern")
+            return
+        }
+
+        #expect(pattern.width?.value == 10)
+        #expect(pattern.children.count == 1)
+    }
 }
