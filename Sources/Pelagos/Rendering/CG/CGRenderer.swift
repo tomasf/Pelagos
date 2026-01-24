@@ -292,23 +292,14 @@ public final class CGRenderer: SVGRenderer {
             }
         } else {
             // Pattern coordinates are in user space
-            // Get the CTM to compute bounds in user space
-            let ctm = context.ctm
-            let inverseCtm = ctm.inverted()
-
+            // path.boundingBox is already in the path's local coordinate system (user space)
             tileX = CGFloat(pattern.tileX)
             tileY = CGFloat(pattern.tileY)
             tileWidth = CGFloat(pattern.tileWidth)
             tileHeight = CGFloat(pattern.tileHeight)
+            tileBounds = path.boundingBox
 
-            // Get the path bounds in user space
-            let pathBounds = path.boundingBox
-            tileBounds = pathBounds.applying(inverseCtm)
-
-            // Reset to user space for drawing tiles (clipping is already applied in device coords)
-            context.concatenate(inverseCtm)
-
-            // Apply pattern transform if any (in user space)
+            // Apply pattern transform if any
             if let transform = pattern.transform {
                 context.concatenate(cgTransform(from: transform))
             }
