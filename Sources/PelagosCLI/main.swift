@@ -22,9 +22,9 @@ do {
     for fileURL in svgFiles {
         let svg = try SVGParser().parse(url: fileURL)
 
-        let viewBox = svg.viewBox
-        let width = resolvedLength(svg.width, fallback: viewBox?.width ?? 512)
-        let height = resolvedLength(svg.height, fallback: viewBox?.height ?? 512)
+        let size = svg.size ?? (width: 512, height: 512)
+        let width = size.width
+        let height = size.height
 
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         guard let context = CGContext(

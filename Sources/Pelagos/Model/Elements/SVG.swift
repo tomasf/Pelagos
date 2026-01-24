@@ -10,6 +10,16 @@ public struct SVG: ContainerElement, GraphicElement, Hashable, Sendable {
     public var viewBox: ViewBox?
     public var preserveAspectRatio: PreserveAspectRatio?
 
+    /// The resolved size of the SVG, using `width`/`height` or `viewBox` as fallback.
+    public var size: (width: Double, height: Double)? {
+        let resolvedWidth = width?.resolvedValue(viewport: viewBox?.width) ?? viewBox?.width
+        let resolvedHeight = height?.resolvedValue(viewport: viewBox?.height) ?? viewBox?.height
+        guard let resolvedWidth, let resolvedHeight else {
+            return nil
+        }
+        return (width: resolvedWidth, height: resolvedHeight)
+    }
+
     var children: [any GraphicElement]
     var definitions: Definitions
 
