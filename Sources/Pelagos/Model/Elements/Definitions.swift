@@ -2,6 +2,7 @@ import Foundation
 
 /// Container for reusable definitions (gradients, patterns, clipPaths, etc.)
 public struct Definitions: Hashable, Sendable {
+    public var defs: [Defs]
     public var gradients: [String: any GradientElement]
     public var patterns: [String: Pattern]
     public var clipPaths: [String: ClipPath]
@@ -11,6 +12,7 @@ public struct Definitions: Hashable, Sendable {
     public var elements: [String: any GraphicElement]
 
     public init() {
+        self.defs = []
         self.gradients = [:]
         self.patterns = [:]
         self.clipPaths = [:]
@@ -22,6 +24,7 @@ public struct Definitions: Hashable, Sendable {
 
     public static func == (lhs: Definitions, rhs: Definitions) -> Bool {
         // Simple equality based on keys
+        lhs.defs.compactMap { $0.id }.sorted() == rhs.defs.compactMap { $0.id }.sorted() &&
         lhs.gradients.keys.sorted() == rhs.gradients.keys.sorted() &&
         lhs.patterns == rhs.patterns &&
         lhs.clipPaths == rhs.clipPaths &&
@@ -32,6 +35,7 @@ public struct Definitions: Hashable, Sendable {
     }
 
     public func hash(into hasher: inout Hasher) {
+        hasher.combine(defs.compactMap { $0.id }.sorted())
         hasher.combine(gradients.keys.sorted())
         hasher.combine(patterns)
         hasher.combine(clipPaths)

@@ -5,7 +5,7 @@ import Nodal
 enum ElementParsers {
     // MARK: - Shape Parsing
 
-    static func parseRect(from node: Node) -> Rect {
+    static func parseRect(from node: Node, styleRules: [CSSRule] = []) -> Rect {
         Rect(
             id: node[attribute: "id"],
             x: AttributeParser.parseLength(node[attribute: "x"]) ?? .zero,
@@ -14,59 +14,59 @@ enum ElementParsers {
             height: AttributeParser.parseLength(node[attribute: "height"]) ?? .zero,
             rx: AttributeParser.parseLength(node[attribute: "rx"]),
             ry: AttributeParser.parseLength(node[attribute: "ry"]),
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
-    static func parseCircle(from node: Node) -> Circle {
+    static func parseCircle(from node: Node, styleRules: [CSSRule] = []) -> Circle {
         Circle(
             id: node[attribute: "id"],
             cx: AttributeParser.parseLength(node[attribute: "cx"]) ?? .zero,
             cy: AttributeParser.parseLength(node[attribute: "cy"]) ?? .zero,
             r: AttributeParser.parseLength(node[attribute: "r"]) ?? .zero,
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
-    static func parseEllipse(from node: Node) -> Ellipse {
+    static func parseEllipse(from node: Node, styleRules: [CSSRule] = []) -> Ellipse {
         Ellipse(
             id: node[attribute: "id"],
             cx: AttributeParser.parseLength(node[attribute: "cx"]) ?? .zero,
             cy: AttributeParser.parseLength(node[attribute: "cy"]) ?? .zero,
             rx: AttributeParser.parseLength(node[attribute: "rx"]) ?? .zero,
             ry: AttributeParser.parseLength(node[attribute: "ry"]) ?? .zero,
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
-    static func parseLine(from node: Node) -> Line {
+    static func parseLine(from node: Node, styleRules: [CSSRule] = []) -> Line {
         Line(
             id: node[attribute: "id"],
             x1: AttributeParser.parseLength(node[attribute: "x1"]) ?? .zero,
             y1: AttributeParser.parseLength(node[attribute: "y1"]) ?? .zero,
             x2: AttributeParser.parseLength(node[attribute: "x2"]) ?? .zero,
             y2: AttributeParser.parseLength(node[attribute: "y2"]) ?? .zero,
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
-    static func parsePolyline(from node: Node) -> Polyline {
+    static func parsePolyline(from node: Node, styleRules: [CSSRule] = []) -> Polyline {
         Polyline(
             id: node[attribute: "id"],
             points: AttributeParser.parsePoints(node[attribute: "points"]) ?? [],
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
-    static func parsePolygon(from node: Node) -> Polygon {
+    static func parsePolygon(from node: Node, styleRules: [CSSRule] = []) -> Polygon {
         Polygon(
             id: node[attribute: "id"],
             points: AttributeParser.parsePoints(node[attribute: "points"]) ?? [],
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
-    static func parsePath(from node: Node) throws -> Path {
+    static func parsePath(from node: Node, styleRules: [CSSRule] = []) throws -> Path {
         let segments: [PathSegment]
         if let d = node[attribute: "d"] {
             segments = try PathParser().parse(d)
@@ -77,35 +77,35 @@ enum ElementParsers {
         return Path(
             id: node[attribute: "id"],
             segments: segments,
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
     // MARK: - Container Parsing
 
-    static func parseGroup(from node: Node, children: [any GraphicElement]) -> Group {
+    static func parseGroup(from node: Node, children: [any GraphicElement], styleRules: [CSSRule] = []) -> Group {
         Group(
             id: node[attribute: "id"],
             children: children,
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
-    static func parseAnchor(from node: Node, children: [any GraphicElement]) -> Anchor {
+    static func parseAnchor(from node: Node, children: [any GraphicElement], styleRules: [CSSRule] = []) -> Anchor {
         Anchor(
             id: node[attribute: "id"],
             href: node[attribute: "href"] ?? node[attribute: "xlink:href"],
             target: node[attribute: "target"],
             children: children,
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
-    static func parseSwitch(from node: Node, children: [any GraphicElement]) -> Switch {
+    static func parseSwitch(from node: Node, children: [any GraphicElement], styleRules: [CSSRule] = []) -> Switch {
         Switch(
             id: node[attribute: "id"],
             children: children,
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
@@ -120,7 +120,7 @@ enum ElementParsers {
 
     // MARK: - Use Element
 
-    static func parseUse(from node: Node) -> Use {
+    static func parseUse(from node: Node, styleRules: [CSSRule] = []) -> Use {
         Use(
             id: node[attribute: "id"],
             href: parseHref(from: node),
@@ -128,7 +128,7 @@ enum ElementParsers {
             y: AttributeParser.parseLength(node[attribute: "y"]),
             width: AttributeParser.parseLength(node[attribute: "width"]),
             height: AttributeParser.parseLength(node[attribute: "height"]),
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
@@ -182,7 +182,17 @@ enum ElementParsers {
             color = AttributeParser.parseColor(stopColor) ?? .black
         }
 
-        let opacity = AttributeParser.parseDouble(node[attribute: "stop-opacity"])
+        var opacity = AttributeParser.parseDouble(node[attribute: "stop-opacity"])
+
+        if let style = node[attribute: "style"] {
+            let properties = AttributeParser.parseStyleAttributes(style)
+            if let stopColor = properties["stop-color"] {
+                color = AttributeParser.parseColor(stopColor) ?? color
+            }
+            if let stopOpacity = properties["stop-opacity"] {
+                opacity = AttributeParser.parseDouble(stopOpacity) ?? opacity
+            }
+        }
 
         return GradientStop(offset: offset, color: color, opacity: opacity)
     }
@@ -304,7 +314,7 @@ enum ElementParsers {
 
     // MARK: - Content Parsing
 
-    static func parseImage(from node: Node) -> Image {
+    static func parseImage(from node: Node, styleRules: [CSSRule] = []) -> Image {
         Image(
             id: node[attribute: "id"],
             href: parseHref(from: node),
@@ -313,11 +323,11 @@ enum ElementParsers {
             width: AttributeParser.parseLength(node[attribute: "width"]),
             height: AttributeParser.parseLength(node[attribute: "height"]),
             preserveAspectRatio: AttributeParser.parsePreserveAspectRatio(node[attribute: "preserveAspectRatio"]),
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
-    static func parseText(from node: Node, content: [TextContent]) -> Text {
+    static func parseText(from node: Node, content: [TextContent], styleRules: [CSSRule] = []) -> Text {
         Text(
             id: node[attribute: "id"],
             x: AttributeParser.parseLengthArray(node[attribute: "x"]),
@@ -328,11 +338,11 @@ enum ElementParsers {
             textLength: AttributeParser.parseLength(node[attribute: "textLength"]),
             lengthAdjust: AttributeParser.parseEnum(node[attribute: "lengthAdjust"], type: LengthAdjust.self),
             content: content,
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
-    static func parseTSpan(from node: Node, content: [TextContent]) -> TSpan {
+    static func parseTSpan(from node: Node, content: [TextContent], styleRules: [CSSRule] = []) -> TSpan {
         TSpan(
             id: node[attribute: "id"],
             x: AttributeParser.parseLengthArray(node[attribute: "x"]),
@@ -343,11 +353,11 @@ enum ElementParsers {
             textLength: AttributeParser.parseLength(node[attribute: "textLength"]),
             lengthAdjust: AttributeParser.parseEnum(node[attribute: "lengthAdjust"], type: LengthAdjust.self),
             content: content,
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 
-    static func parseTextPath(from node: Node, content: String) -> TextPath {
+    static func parseTextPath(from node: Node, content: String, styleRules: [CSSRule] = []) -> TextPath {
         TextPath(
             id: node[attribute: "id"],
             href: parseHref(from: node),
@@ -355,7 +365,7 @@ enum ElementParsers {
             method: AttributeParser.parseEnum(node[attribute: "method"], type: TextPathMethod.self),
             spacing: AttributeParser.parseEnum(node[attribute: "spacing"], type: TextPathSpacing.self),
             content: content,
-            presentation: PresentationParser.parse(from: node)
+            presentation: PresentationParser.parse(from: node, styleRules: styleRules)
         )
     }
 

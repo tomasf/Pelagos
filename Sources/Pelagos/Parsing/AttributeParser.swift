@@ -82,6 +82,11 @@ struct AttributeParser {
             return parseRGBFunction(string)
         }
 
+        // CSS color() function (e.g. display-p3)
+        if string.hasPrefix("color(") {
+            return parseColorFunction(string)
+        }
+
         // Treat as named color
         return .named(string)
     }
@@ -152,6 +157,55 @@ struct AttributeParser {
         }
 
         return .rgb(red: UInt8(min(255, max(0, r))), green: UInt8(min(255, max(0, g))), blue: UInt8(min(255, max(0, b))))
+    }
+
+    private static func parseColorFunction(_ string: String) -> Color? {
+        let inner = string
+            .replacingOccurrences(of: "color(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+
+        let components = inner.split(whereSeparator: { $0 == "," || $0 == " " || $0 == "/" })
+            .map { String($0).trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        guard components.count >= 4 else { return nil }
+
+        let colorSpace = components[0]
+        let values = Array(components.dropFirst())
+
+        func parseComponent(_ s: String) -> Double? {
+            if s.hasSuffix("%") {
+                guard let v = Double(s.dropLast()) else { return nil }
+                return v / 100.0
+            }
+            return Double(s)
+        }
+
+        guard colorSpace == "display-p3",
+              let r = parseComponent(values[0]),
+              let g = parseComponent(values[1]),
+              let b = parseComponent(values[2]) else { return nil }
+
+        let alpha = values.count > 3 ? parseComponent(values[3]) : 1.0
+        return .p3(red: r, green: g, blue: b, alpha: alpha ?? 1.0)
+    }
+
+    // MARK: - Style Parsing
+
+    static func parseStyleAttributes(_ style: String) -> [String: String] {
+        var properties: [String: String] = [:]
+
+        let declarations = style.split(separator: ";")
+        for declaration in declarations {
+            let parts = declaration.split(separator: ":", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+
+            let property = String(parts[0]).trimmingCharacters(in: .whitespaces).lowercased()
+            let value = String(parts[1]).trimmingCharacters(in: .whitespaces)
+            properties[property] = value
+        }
+
+        return properties
     }
 
     // MARK: - Fill Parsing

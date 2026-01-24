@@ -3,7 +3,50 @@ import Nodal
 
 /// Parser for presentation attributes from an SVG element
 struct PresentationParser {
-    static func parse(from node: Node) -> PresentationAttributes {
+    static func parse(from node: Node, styleRules: [CSSRule] = []) -> PresentationAttributes {
+        var attrs = parseAttributes(from: node)
+
+        if !styleRules.isEmpty {
+            var elementRules: [CSSRule] = []
+            var classRules: [CSSRule] = []
+            var idRules: [CSSRule] = []
+
+            for rule in styleRules {
+                if let specificity = matchSpecificity(for: rule, node: node) {
+                    switch specificity {
+                    case .element:
+                        elementRules.append(rule)
+                    case .class:
+                        classRules.append(rule)
+                    case .id:
+                        idRules.append(rule)
+                    }
+                }
+            }
+
+            for rule in elementRules {
+                attrs = attrs.merged(with: parseStyleProperties(rule.properties))
+            }
+
+            for rule in classRules {
+                attrs = attrs.merged(with: parseStyleProperties(rule.properties))
+            }
+
+            for rule in idRules {
+                attrs = attrs.merged(with: parseStyleProperties(rule.properties))
+            }
+        }
+
+        // Inline styles take highest precedence
+        if let style = node[attribute: "style"] {
+            let inlineAttrs = parseStyleProperties(AttributeParser.parseStyleAttributes(style))
+            attrs = attrs.merged(with: inlineAttrs)
+        }
+
+        return attrs
+    }
+
+    private static func parseAttributes(from node: Node) -> PresentationAttributes {
         var attrs = PresentationAttributes()
 
         // Fill properties
@@ -47,12 +90,6 @@ struct PresentationParser {
         // CSS class
         attrs.cssClass = node[attribute: "class"]
 
-        // Parse inline style attribute and merge
-        if let style = node[attribute: "style"] {
-            let styleAttrs = parseStyleAttribute(style)
-            attrs = attrs.merged(with: styleAttrs)
-        }
-
         return attrs
     }
 
@@ -72,18 +109,11 @@ struct PresentationParser {
         }
     }
 
-    private static func parseStyleAttribute(_ style: String) -> PresentationAttributes {
+    private static func parseStyleProperties(_ properties: [String: String]) -> PresentationAttributes {
         var attrs = PresentationAttributes()
 
-        let declarations = style.split(separator: ";")
-        for declaration in declarations {
-            let parts = declaration.split(separator: ":", maxSplits: 1)
-            guard parts.count == 2 else { continue }
-
-            let property = String(parts[0]).trimmingCharacters(in: .whitespaces).lowercased()
-            let value = String(parts[1]).trimmingCharacters(in: .whitespaces)
-
-            switch property {
+        for (property, value) in properties {
+            switch property.lowercased() {
             case "fill":
                 attrs.fill = AttributeParser.parseFill(value)
             case "fill-opacity":
@@ -138,5 +168,89 @@ struct PresentationParser {
         }
 
         return attrs
+    }
+
+    private enum SelectorSpecificity: Int {
+        case element = 0
+        case `class` = 1
+        case id = 2
+    }
+
+    private static func matchSpecificity(for rule: CSSRule, node: Node) -> SelectorSpecificity? {
+        let selectors = rule.selector.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        var best: SelectorSpecificity?
+
+        for selector in selectors {
+            if let specificity = matchSelector(selector, node: node) {
+                if best == nil || specificity.rawValue > best!.rawValue {
+                    best = specificity
+                }
+            }
+        }
+
+        return best
+    }
+
+    private static func matchSelector(_ selector: String, node: Node) -> SelectorSpecificity? {
+        if selector.isEmpty || selector.contains(where: { $0.isWhitespace }) {
+            return nil
+        }
+
+        var tagName: String?
+        var id: String?
+        var classes: [String] = []
+
+        var remaining = selector[...]
+
+        if let first = remaining.first, first != "." && first != "#" {
+            let name = remaining.prefix { $0 != "." && $0 != "#" }
+            tagName = String(name)
+            remaining = remaining.dropFirst(name.count)
+        }
+
+        while let first = remaining.first {
+            if first == "#" {
+                remaining = remaining.dropFirst()
+                let name = remaining.prefix { $0 != "." && $0 != "#" }
+                id = String(name)
+                remaining = remaining.dropFirst(name.count)
+            } else if first == "." {
+                remaining = remaining.dropFirst()
+                let name = remaining.prefix { $0 != "." && $0 != "#" }
+                classes.append(String(name))
+                remaining = remaining.dropFirst(name.count)
+            } else {
+                return nil
+            }
+        }
+
+        if let tagName = tagName, tagName != "*" && tagName != node.name {
+            return nil
+        }
+
+        if let id = id, id != node[attribute: "id"] {
+            return nil
+        }
+
+        if !classes.isEmpty {
+            let classList = (node[attribute: "class"] ?? "")
+                .split(separator: " ")
+                .map { String($0) }
+            for className in classes where !classList.contains(className) {
+                return nil
+            }
+        }
+
+        if id != nil {
+            return .id
+        }
+        if !classes.isEmpty {
+            return .class
+        }
+        if tagName != nil {
+            return .element
+        }
+
+        return nil
     }
 }

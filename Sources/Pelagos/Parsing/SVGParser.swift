@@ -39,11 +39,13 @@ public struct SVGParser {
         var definitions = Definitions()
         var styleRules: [CSSRule] = []
 
-        // First pass: collect definitions and styles
-        collectDefinitions(from: root, into: &definitions, styles: &styleRules)
+        // First pass: collect styles
+        collectStyles(from: root, styles: &styleRules)
 
-        // Second pass: parse the tree
-        let children = try parseChildren(of: root, definitions: &definitions)
+        // Second pass: collect definitions and parse the tree
+        collectDefinitions(from: root, into: &definitions, styleRules: styleRules)
+        collectDefsContainers(from: root, into: &definitions, styleRules: styleRules)
+        let children = try parseChildren(of: root, definitions: &definitions, styleRules: styleRules)
 
         return SVG(
             id: root[attribute: "id"],
@@ -53,13 +55,13 @@ public struct SVGParser {
             preserveAspectRatio: AttributeParser.parsePreserveAspectRatio(root[attribute: "preserveAspectRatio"]),
             children: children,
             definitions: definitions,
-            presentation: PresentationParser.parse(from: root)
+            presentation: PresentationParser.parse(from: root, styleRules: styleRules)
         )
     }
 
-    // MARK: - Definition Collection
+    // MARK: - Style Collection
 
-    private func collectDefinitions(from node: Node, into definitions: inout Definitions, styles: inout [CSSRule]) {
+    private func collectStyles(from node: Node, styles: inout [CSSRule]) {
         // Skip non-element nodes
         guard node.kind == .element else { return }
 
@@ -70,20 +72,32 @@ public struct SVGParser {
             styles.append(contentsOf: rules)
         }
 
+        // Recurse
+        for child in node.elements {
+            collectStyles(from: child, styles: &styles)
+        }
+    }
+
+    // MARK: - Definition Collection
+
+    private func collectDefinitions(from node: Node, into definitions: inout Definitions, styleRules: [CSSRule]) {
+        // Skip non-element nodes
+        guard node.kind == .element else { return }
+
         // Process defs container
         if node.name == "defs" {
             for child in node.elements {
-                collectDefinition(from: child, into: &definitions)
+                collectDefinition(from: child, into: &definitions, styleRules: styleRules)
             }
         }
 
         // Recurse
         for child in node.elements {
-            collectDefinitions(from: child, into: &definitions, styles: &styles)
+            collectDefinitions(from: child, into: &definitions, styleRules: styleRules)
         }
     }
 
-    private func collectDefinition(from node: Node, into definitions: inout Definitions) {
+    private func collectDefinition(from node: Node, into definitions: inout Definitions, styleRules: [CSSRule]) {
         guard let id = node[attribute: "id"], !id.isEmpty else { return }
 
         switch node.name {
@@ -99,19 +113,19 @@ public struct SVGParser {
 
         case "pattern":
             var innerDefs = definitions
-            let children = (try? parseChildren(of: node, definitions: &innerDefs)) ?? []
+            let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules)) ?? []
             let pattern = ElementParsers.parsePattern(from: node, children: children)
             definitions.patterns[id] = pattern
 
         case "clipPath":
             var innerDefs = definitions
-            let children = (try? parseChildren(of: node, definitions: &innerDefs)) ?? []
+            let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules)) ?? []
             let clipPath = ElementParsers.parseClipPath(from: node, children: children)
             definitions.clipPaths[id] = clipPath
 
         case "mask":
             var innerDefs = definitions
-            let children = (try? parseChildren(of: node, definitions: &innerDefs)) ?? []
+            let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules)) ?? []
             let mask = ElementParsers.parseMask(from: node, children: children)
             definitions.masks[id] = mask
 
@@ -122,21 +136,36 @@ public struct SVGParser {
 
         case "symbol":
             var innerDefs = definitions
-            let children = (try? parseChildren(of: node, definitions: &innerDefs)) ?? []
+            let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules)) ?? []
             let symbol = ElementParsers.parseSymbol(from: node, children: children)
             definitions.symbols[id] = symbol
 
         default:
             // Store other elements with ids for use references
-            if let graphic = try? parseElement(node, definitions: &definitions) {
+            if let graphic = try? parseElement(node, definitions: &definitions, styleRules: styleRules) {
                 definitions.elements[id] = graphic
             }
         }
     }
 
+    private func collectDefsContainers(from node: Node, into definitions: inout Definitions, styleRules: [CSSRule]) {
+        guard node.kind == .element else { return }
+
+        if node.name == "defs" {
+            var innerDefs = definitions
+            let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules)) ?? []
+            let defs = Defs(id: node[attribute: "id"], children: children)
+            definitions.defs.append(defs)
+        }
+
+        for child in node.elements {
+            collectDefsContainers(from: child, into: &definitions, styleRules: styleRules)
+        }
+    }
+
     // MARK: - Element Parsing
 
-    private func parseChildren(of parent: Node, definitions: inout Definitions) throws -> [any GraphicElement] {
+    private func parseChildren(of parent: Node, definitions: inout Definitions, styleRules: [CSSRule]) throws -> [any GraphicElement] {
         var children: [any GraphicElement] = []
 
         for child in parent.elements {
@@ -150,12 +179,12 @@ public struct SVGParser {
             if ["linearGradient", "radialGradient", "pattern", "clipPath", "mask", "filter", "symbol"].contains(child.name) {
                 // Still collect them if they have ids
                 if child[attribute: "id"] != nil {
-                    collectDefinition(from: child, into: &definitions)
+                    collectDefinition(from: child, into: &definitions, styleRules: styleRules)
                 }
                 continue
             }
 
-            if let graphic = try? parseElement(child, definitions: &definitions) {
+            if let graphic = try? parseElement(child, definitions: &definitions, styleRules: styleRules) {
                 children.append(graphic)
 
                 // Register if it has an id
@@ -168,38 +197,38 @@ public struct SVGParser {
         return children
     }
 
-    private func parseElement(_ node: Node, definitions: inout Definitions) throws -> (any GraphicElement)? {
+    private func parseElement(_ node: Node, definitions: inout Definitions, styleRules: [CSSRule]) throws -> (any GraphicElement)? {
         switch node.name {
         // Shapes
         case "rect":
-            return ElementParsers.parseRect(from: node)
+            return ElementParsers.parseRect(from: node, styleRules: styleRules)
 
         case "circle":
-            return ElementParsers.parseCircle(from: node)
+            return ElementParsers.parseCircle(from: node, styleRules: styleRules)
 
         case "ellipse":
-            return ElementParsers.parseEllipse(from: node)
+            return ElementParsers.parseEllipse(from: node, styleRules: styleRules)
 
         case "line":
-            return ElementParsers.parseLine(from: node)
+            return ElementParsers.parseLine(from: node, styleRules: styleRules)
 
         case "polyline":
-            return ElementParsers.parsePolyline(from: node)
+            return ElementParsers.parsePolyline(from: node, styleRules: styleRules)
 
         case "polygon":
-            return ElementParsers.parsePolygon(from: node)
+            return ElementParsers.parsePolygon(from: node, styleRules: styleRules)
 
         case "path":
-            return try ElementParsers.parsePath(from: node)
+            return try ElementParsers.parsePath(from: node, styleRules: styleRules)
 
         // Containers
         case "g":
-            let children = try parseChildren(of: node, definitions: &definitions)
-            return ElementParsers.parseGroup(from: node, children: children)
+            let children = try parseChildren(of: node, definitions: &definitions, styleRules: styleRules)
+            return ElementParsers.parseGroup(from: node, children: children, styleRules: styleRules)
 
         case "svg":
             // Nested SVG
-            let children = try parseChildren(of: node, definitions: &definitions)
+            let children = try parseChildren(of: node, definitions: &definitions, styleRules: styleRules)
             return SVG(
                 id: node[attribute: "id"],
                 width: AttributeParser.parseLength(node[attribute: "width"]),
@@ -208,28 +237,28 @@ public struct SVGParser {
                 preserveAspectRatio: AttributeParser.parsePreserveAspectRatio(node[attribute: "preserveAspectRatio"]),
                 children: children,
                 definitions: Definitions(),
-                presentation: PresentationParser.parse(from: node)
+                presentation: PresentationParser.parse(from: node, styleRules: styleRules)
             )
 
         case "a":
-            let children = try parseChildren(of: node, definitions: &definitions)
-            return ElementParsers.parseAnchor(from: node, children: children)
+            let children = try parseChildren(of: node, definitions: &definitions, styleRules: styleRules)
+            return ElementParsers.parseAnchor(from: node, children: children, styleRules: styleRules)
 
         case "switch":
-            let children = try parseChildren(of: node, definitions: &definitions)
-            return ElementParsers.parseSwitch(from: node, children: children)
+            let children = try parseChildren(of: node, definitions: &definitions, styleRules: styleRules)
+            return ElementParsers.parseSwitch(from: node, children: children, styleRules: styleRules)
 
         // References
         case "use":
-            return ElementParsers.parseUse(from: node)
+            return ElementParsers.parseUse(from: node, styleRules: styleRules)
 
         // Content
         case "image":
-            return ElementParsers.parseImage(from: node)
+            return ElementParsers.parseImage(from: node, styleRules: styleRules)
 
         case "text":
-            let content = parseTextContent(from: node)
-            return ElementParsers.parseText(from: node, content: content)
+            let content = parseTextContent(from: node, styleRules: styleRules)
+            return ElementParsers.parseText(from: node, content: content, styleRules: styleRules)
 
         default:
             // Unknown element - skip
@@ -267,25 +296,25 @@ public struct SVGParser {
 
     // MARK: - Text Content
 
-    private func parseTextContent(from node: Node) -> [TextContent] {
+    private func parseTextContent(from node: Node, styleRules: [CSSRule]) -> [TextContent] {
         var content: [TextContent] = []
 
         for child in node.children {
             if child.kind == .text || child.kind == .cdata {
-                let text = child.value.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !text.isEmpty {
+                let text = child.value
+                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     content.append(.text(text))
                 }
             } else if child.kind == .element {
                 switch child.name {
                 case "tspan":
-                    let innerContent = parseTextContent(from: child)
-                    let tspan = ElementParsers.parseTSpan(from: child, content: innerContent)
+                    let innerContent = parseTextContent(from: child, styleRules: styleRules)
+                    let tspan = ElementParsers.parseTSpan(from: child, content: innerContent, styleRules: styleRules)
                     content.append(.span(tspan))
 
                 case "textPath":
                     let text = child.textContent
-                    let textPath = ElementParsers.parseTextPath(from: child, content: text)
+                    let textPath = ElementParsers.parseTextPath(from: child, content: text, styleRules: styleRules)
                     content.append(.reference(textPath))
 
                 default:

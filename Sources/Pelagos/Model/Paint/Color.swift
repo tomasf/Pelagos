@@ -6,6 +6,7 @@ public enum Color: Hashable, Sendable {
     case currentColor
     case rgb(red: UInt8, green: UInt8, blue: UInt8)
     case rgba(red: UInt8, green: UInt8, blue: UInt8, alpha: Double)
+    case p3(red: Double, green: Double, blue: Double, alpha: Double)
     case named(String)
 
     public static let black = Color.rgb(red: 0, green: 0, blue: 0)
