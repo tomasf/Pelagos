@@ -101,11 +101,12 @@ private func drawShape(
     context.addPath(path)
 
     let presentation = drawContext.presentation
-    let shouldFill = shouldFillPath(presentation)
-    let shouldStroke = shouldStrokePath(presentation)
-    let fillRule = presentation.fillRule ?? .nonzero
+    let resolvedPaint = drawContext.resolvedPaint
+    let shouldFill = shouldFillPath(resolvedPaint)
+    let shouldStroke = shouldStrokePath(resolvedPaint)
+    let fillRule = resolvedPaint.fillRule
 
-    applyPresentation(presentation, to: context)
+    applyPresentation(resolvedPaint, to: context)
 
     if shouldFill, case .url(let reference) = presentation.fill ?? .none {
         if let gradient = drawContext.definitions.gradients[reference] {
@@ -136,22 +137,24 @@ private func drawShape(
     return .continue
 }
 
-private func applyPresentation(_ presentation: PresentationAttributes, to context: CGContext) {
-    let opacity = presentation.opacity ?? 1
-
-    if let fillColor = colorForFill(presentation.fill, opacity: opacity, fillOpacity: presentation.fillOpacity) {
-        context.setFillColor(fillColor)
+private func applyPresentation(_ resolvedPaint: ResolvedPaint, to context: CGContext) {
+    if let fillColor = resolvedPaint.fillColor,
+       resolvedPaint.fillAlpha > 0,
+       let color = cgColor(from: fillColor, opacity: resolvedPaint.fillAlpha) {
+        context.setFillColor(color)
     }
 
-    if let strokeColor = colorForStroke(presentation.stroke, opacity: opacity, strokeOpacity: presentation.strokeOpacity) {
-        context.setStrokeColor(strokeColor)
+    if let strokeColor = resolvedPaint.strokeColor,
+       resolvedPaint.strokeAlpha > 0,
+       let color = cgColor(from: strokeColor, opacity: resolvedPaint.strokeAlpha) {
+        context.setStrokeColor(color)
     }
 
-    if let width = presentation.strokeWidth?.value {
+    if let width = resolvedPaint.lineWidth {
         context.setLineWidth(width)
     }
 
-    if let lineCap = presentation.strokeLineCap {
+    if let lineCap = resolvedPaint.lineCap {
         switch lineCap {
         case .butt: context.setLineCap(.butt)
         case .round: context.setLineCap(.round)
@@ -159,7 +162,7 @@ private func applyPresentation(_ presentation: PresentationAttributes, to contex
         }
     }
 
-    if let lineJoin = presentation.strokeLineJoin {
+    if let lineJoin = resolvedPaint.lineJoin {
         switch lineJoin {
         case .round: context.setLineJoin(.round)
         case .bevel: context.setLineJoin(.bevel)
@@ -167,59 +170,29 @@ private func applyPresentation(_ presentation: PresentationAttributes, to contex
         }
     }
 
-    if let miter = presentation.strokeMiterLimit {
+    if let miter = resolvedPaint.miterLimit {
         context.setMiterLimit(miter)
     }
 
-    if let dashArray = presentation.strokeDashArray {
-        let lengths = dashArray.map { CGFloat($0.value) }
-        let phase = CGFloat(presentation.strokeDashOffset?.value ?? 0)
+    if let dashArray = resolvedPaint.dashArray {
+        let lengths = dashArray.map { CGFloat($0) }
+        let phase = CGFloat(resolvedPaint.dashOffset ?? 0)
         context.setLineDash(phase: phase, lengths: lengths)
     }
 }
 
-private func shouldFillPath(_ presentation: PresentationAttributes) -> Bool {
-    if let fill = presentation.fill {
-        return fill != .none
+private func shouldFillPath(_ paint: ResolvedPaint) -> Bool {
+    if paint.fillAlpha <= 0 {
+        return false
     }
-    return true
+    return paint.fillColor != nil
 }
 
-private func shouldStrokePath(_ presentation: PresentationAttributes) -> Bool {
-    if let stroke = presentation.stroke {
-        return stroke != .none
+private func shouldStrokePath(_ paint: ResolvedPaint) -> Bool {
+    if paint.strokeAlpha <= 0 {
+        return false
     }
-    return false
-}
-
-private func colorForFill(_ fill: Fill?, opacity: Double, fillOpacity: Double?) -> CGColor? {
-    guard let fill else {
-        return cgColor(from: .black, opacity: opacity)
-    }
-    switch fill {
-    case .none:
-        return nil
-    case .color(let color):
-        return cgColor(from: color, opacity: opacity * (fillOpacity ?? 1))
-    case .url:
-        return nil
-    case .urlWithFallback(_, let fallback):
-        return cgColor(from: fallback, opacity: opacity * (fillOpacity ?? 1))
-    }
-}
-
-private func colorForStroke(_ stroke: Fill?, opacity: Double, strokeOpacity: Double?) -> CGColor? {
-    guard let stroke else { return nil }
-    switch stroke {
-    case .none:
-        return nil
-    case .color(let color):
-        return cgColor(from: color, opacity: opacity * (strokeOpacity ?? 1))
-    case .url:
-        return nil
-    case .urlWithFallback(_, let fallback):
-        return cgColor(from: fallback, opacity: opacity * (strokeOpacity ?? 1))
-    }
+    return paint.strokeColor != nil
 }
 
 private func drawGradient(
@@ -229,6 +202,7 @@ private func drawGradient(
     presentation: PresentationAttributes,
     drawContext: DrawContext
 ) -> Bool {
+    let fillAlpha = drawContext.resolvedPaint.fillAlpha
     let stops = gradient.stops.isEmpty ? nil : gradient.stops
     guard let stops else { return false }
 
@@ -238,8 +212,7 @@ private func drawGradient(
     let viewRefHeight = drawContext.viewBox?.height ?? drawContext.viewSize.height?.value ?? bbox.height
 
     let colors = stops.compactMap { stop -> CGColor? in
-        let opacity = presentation.opacity ?? 1
-        let alpha = opacity * (stop.opacity ?? 1)
+        let alpha = fillAlpha * (stop.opacity ?? 1)
         return cgColor(from: stop.color, opacity: alpha)
     }
     guard colors.count == stops.count else { return false }

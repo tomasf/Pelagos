@@ -2,6 +2,7 @@ import Foundation
 
 public struct DrawContext: Sendable {
     public var presentation: PresentationAttributes
+    public var resolvedPaint: ResolvedPaint
     public var transforms: [Transform]
     public var viewBox: ViewBox?
     public var viewSize: (width: Length?, height: Length?)
@@ -9,16 +10,58 @@ public struct DrawContext: Sendable {
 
     public init(
         presentation: PresentationAttributes = PresentationAttributes(),
+        resolvedPaint: ResolvedPaint = ResolvedPaint(),
         transforms: [Transform] = [],
         viewBox: ViewBox? = nil,
         viewSize: (width: Length?, height: Length?) = (nil, nil),
         definitions: Definitions = Definitions()
     ) {
         self.presentation = presentation
+        self.resolvedPaint = resolvedPaint
         self.transforms = transforms
         self.viewBox = viewBox
         self.viewSize = viewSize
         self.definitions = definitions
+    }
+}
+
+public struct ResolvedPaint: Sendable {
+    public var fillColor: Color?
+    public var strokeColor: Color?
+    public var fillAlpha: Double
+    public var strokeAlpha: Double
+    public var fillRule: FillRule
+    public var lineWidth: Double?
+    public var lineCap: LineCap?
+    public var lineJoin: LineJoin?
+    public var miterLimit: Double?
+    public var dashArray: [Double]?
+    public var dashOffset: Double?
+
+    public init(
+        fillColor: Color? = nil,
+        strokeColor: Color? = nil,
+        fillAlpha: Double = 1,
+        strokeAlpha: Double = 1,
+        fillRule: FillRule = .nonzero,
+        lineWidth: Double? = nil,
+        lineCap: LineCap? = nil,
+        lineJoin: LineJoin? = nil,
+        miterLimit: Double? = nil,
+        dashArray: [Double]? = nil,
+        dashOffset: Double? = nil
+    ) {
+        self.fillColor = fillColor
+        self.strokeColor = strokeColor
+        self.fillAlpha = fillAlpha
+        self.strokeAlpha = strokeAlpha
+        self.fillRule = fillRule
+        self.lineWidth = lineWidth
+        self.lineCap = lineCap
+        self.lineJoin = lineJoin
+        self.miterLimit = miterLimit
+        self.dashArray = dashArray
+        self.dashOffset = dashOffset
     }
 }
 
@@ -85,8 +128,10 @@ public protocol DrawCallback: Sendable {
 
 public extension SVG {
     func walk(callback: DrawCallback, options: DrawOptions = DrawOptions()) {
+        let resolvedPaint = resolvePaint(from: presentation)
         var rootContext = DrawContext(
             presentation: presentation,
+            resolvedPaint: resolvedPaint,
             transforms: presentation.transform ?? [],
             viewBox: viewBox,
             viewSize: (width, height),
@@ -170,9 +215,11 @@ private func walkElement(
         return callback.handle(event: .endSwitch(switchNode), context: childContext) != .stop
     }
 
-    if let svg = element as? SVG {
+        if let svg = element as? SVG {
+        let resolvedPaint = resolvePaint(from: svg.presentation)
         var childContext = DrawContext(
             presentation: svg.presentation,
+            resolvedPaint: resolvedPaint,
             transforms: svg.presentation.transform ?? [],
             viewBox: svg.viewBox,
             viewSize: (svg.width, svg.height),
@@ -260,8 +307,11 @@ private func inheritContext(
         transforms.append(contentsOf: local)
     }
 
+    let resolvedPaint = resolvePaint(from: presentation)
+
     return DrawContext(
         presentation: presentation,
+        resolvedPaint: resolvedPaint,
         transforms: transforms,
         viewBox: parent.viewBox,
         viewSize: parent.viewSize,
@@ -284,4 +334,57 @@ private func buildTextRuns(from content: [TextContent], basePresentation: Presen
         }
     }
     return runs
+}
+
+private func resolvePaint(from presentation: PresentationAttributes) -> ResolvedPaint {
+    let opacity = presentation.opacity ?? 1
+    let fillOpacity = presentation.fillOpacity ?? 1
+    let strokeOpacity = presentation.strokeOpacity ?? 1
+
+    let fillColor = resolveFillColor(from: presentation.fill)
+    let strokeColor = resolveStrokeColor(from: presentation.stroke)
+
+    return ResolvedPaint(
+        fillColor: fillColor,
+        strokeColor: strokeColor,
+        fillAlpha: opacity * fillOpacity,
+        strokeAlpha: opacity * strokeOpacity,
+        fillRule: presentation.fillRule ?? .nonzero,
+        lineWidth: presentation.strokeWidth?.value,
+        lineCap: presentation.strokeLineCap,
+        lineJoin: presentation.strokeLineJoin,
+        miterLimit: presentation.strokeMiterLimit,
+        dashArray: presentation.strokeDashArray?.map { $0.value },
+        dashOffset: presentation.strokeDashOffset?.value
+    )
+}
+
+private func resolveFillColor(from fill: Fill?) -> Color? {
+    switch fill {
+    case .some(.none):
+        return nil
+    case .some(.color(let color)):
+        return color
+    case .some(.urlWithFallback(_, let fallback)):
+        return fallback
+    case .some(.url):
+        return nil
+    case nil:
+        return .black
+    }
+}
+
+private func resolveStrokeColor(from stroke: Fill?) -> Color? {
+    switch stroke {
+    case .some(.none):
+        return nil
+    case .some(.color(let color)):
+        return color
+    case .some(.urlWithFallback(_, let fallback)):
+        return fallback
+    case .some(.url):
+        return nil
+    case nil:
+        return nil
+    }
 }
