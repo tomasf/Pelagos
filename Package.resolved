@@ -1,0 +1,15 @@
+{
+  "originHash" : "e65c465936092e258b70f386f932ad265ae0223c58f7504e8d10eb0551ff9f85",
+  "pins" : [
+    {
+      "identity" : "nodal",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tomasf/Nodal.git",
+      "state" : {
+        "revision" : "275b8efd1d36d45154759a19e8cad709c2a36c64",
+        "version" : "0.4.1"
+      }
+    }
+  ],
+  "version" : 3
+}
