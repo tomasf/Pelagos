@@ -350,6 +350,7 @@ private func resolvePaint(from presentation: PresentationAttributes) -> Resolved
     let opacity = presentation.opacity ?? 1
     let fillOpacity = presentation.fillOpacity ?? 1
     let strokeOpacity = presentation.strokeOpacity ?? 1
+    let fontSize = presentation.fontSize?.resolvedValue() ?? 16
 
     let fillColor = resolveFillColor(from: presentation.fill)
     let strokeColor = resolveStrokeColor(from: presentation.stroke)
@@ -362,12 +363,12 @@ private func resolvePaint(from presentation: PresentationAttributes) -> Resolved
         fillAlpha: opacity * fillOpacity,
         strokeAlpha: opacity * strokeOpacity,
         fillRule: presentation.fillRule ?? .nonzero,
-        lineWidth: presentation.strokeWidth?.value,
+        lineWidth: presentation.strokeWidth?.resolvedValue(fontSize: fontSize),
         lineCap: presentation.strokeLineCap,
         lineJoin: presentation.strokeLineJoin,
         miterLimit: miterLimit,
-        dashArray: presentation.strokeDashArray?.map { $0.value },
-        dashOffset: presentation.strokeDashOffset?.value
+        dashArray: presentation.strokeDashArray?.map { $0.resolvedValue(fontSize: fontSize) },
+        dashOffset: presentation.strokeDashOffset?.resolvedValue(fontSize: fontSize)
     )
 }
 

@@ -22,43 +22,64 @@ public final class CGContextRenderer: DrawCallback, @unchecked Sendable {
             return .continue
 
         case .drawRect(let rect):
+            let refs = resolveViewReferences(drawContext)
+            let x = resolveLength(rect.x, viewRef: refs.width, fontSize: refs.fontSize)
+            let y = resolveLength(rect.y, viewRef: refs.height, fontSize: refs.fontSize)
+            let width = resolveLength(rect.width, viewRef: refs.width, fontSize: refs.fontSize)
+            let height = resolveLength(rect.height, viewRef: refs.height, fontSize: refs.fontSize)
+            let rx = resolveLength(rect.rx, viewRef: refs.width, fontSize: refs.fontSize)
+            let ry = resolveLength(rect.ry, viewRef: refs.height, fontSize: refs.fontSize)
             return drawShape(context: context, drawContext: drawContext) {
-                let rx = rect.rx?.value ?? rect.ry?.value ?? 0
-                let ry = rect.ry?.value ?? rect.rx?.value ?? 0
-                let rectFrame = CGRect(x: rect.x.value, y: rect.y.value, width: rect.width.value, height: rect.height.value)
-                if rx > 0 || ry > 0 {
-                    $0.addPath(CGPath(roundedRect: rectFrame, cornerWidth: rx, cornerHeight: ry, transform: nil))
+                let cornerX = rx > 0 ? rx : (rect.ry == nil ? 0 : ry)
+                let cornerY = ry > 0 ? ry : (rect.rx == nil ? 0 : rx)
+                let rectFrame = CGRect(x: x, y: y, width: width, height: height)
+                if cornerX > 0 || cornerY > 0 {
+                    $0.addPath(CGPath(roundedRect: rectFrame, cornerWidth: cornerX, cornerHeight: cornerY, transform: nil))
                 } else {
                     $0.addRect(rectFrame)
                 }
             }
 
         case .drawCircle(let circle):
+            let refs = resolveViewReferences(drawContext)
+            let cx = resolveLength(circle.cx, viewRef: refs.width, fontSize: refs.fontSize)
+            let cy = resolveLength(circle.cy, viewRef: refs.height, fontSize: refs.fontSize)
+            let r = resolveLength(circle.r, viewRef: min(refs.width, refs.height), fontSize: refs.fontSize)
             return drawShape(context: context, drawContext: drawContext) {
                 let rect = CGRect(
-                    x: circle.cx.value - circle.r.value,
-                    y: circle.cy.value - circle.r.value,
-                    width: circle.r.value * 2,
-                    height: circle.r.value * 2
+                    x: cx - r,
+                    y: cy - r,
+                    width: r * 2,
+                    height: r * 2
                 )
                 $0.addEllipse(in: rect)
             }
 
         case .drawEllipse(let ellipse):
+            let refs = resolveViewReferences(drawContext)
+            let cx = resolveLength(ellipse.cx, viewRef: refs.width, fontSize: refs.fontSize)
+            let cy = resolveLength(ellipse.cy, viewRef: refs.height, fontSize: refs.fontSize)
+            let rx = resolveLength(ellipse.rx, viewRef: refs.width, fontSize: refs.fontSize)
+            let ry = resolveLength(ellipse.ry, viewRef: refs.height, fontSize: refs.fontSize)
             return drawShape(context: context, drawContext: drawContext) {
                 let rect = CGRect(
-                    x: ellipse.cx.value - ellipse.rx.value,
-                    y: ellipse.cy.value - ellipse.ry.value,
-                    width: ellipse.rx.value * 2,
-                    height: ellipse.ry.value * 2
+                    x: cx - rx,
+                    y: cy - ry,
+                    width: rx * 2,
+                    height: ry * 2
                 )
                 $0.addEllipse(in: rect)
             }
 
         case .drawLine(let line):
+            let refs = resolveViewReferences(drawContext)
+            let x1 = resolveLength(line.x1, viewRef: refs.width, fontSize: refs.fontSize)
+            let y1 = resolveLength(line.y1, viewRef: refs.height, fontSize: refs.fontSize)
+            let x2 = resolveLength(line.x2, viewRef: refs.width, fontSize: refs.fontSize)
+            let y2 = resolveLength(line.y2, viewRef: refs.height, fontSize: refs.fontSize)
             return drawShape(context: context, drawContext: drawContext) {
-                $0.move(to: CGPoint(x: line.x1.value, y: line.y1.value))
-                $0.addLine(to: CGPoint(x: line.x2.value, y: line.y2.value))
+                $0.move(to: CGPoint(x: x1, y: y1))
+                $0.addLine(to: CGPoint(x: x2, y: y2))
             }
 
         case .drawPolyline(let polyline):
@@ -241,8 +262,8 @@ private func drawGradient(
 
     let bbox = path.boundingBoxOfPath
     let units = gradient.gradientUnits ?? .objectBoundingBox
-    let viewRefWidth = drawContext.viewBox?.width ?? drawContext.viewSize.width?.value ?? bbox.width
-    let viewRefHeight = drawContext.viewBox?.height ?? drawContext.viewSize.height?.value ?? bbox.height
+    let viewRefWidth = drawContext.viewBox?.width ?? drawContext.viewSize.width?.resolvedValue() ?? bbox.width
+    let viewRefHeight = drawContext.viewBox?.height ?? drawContext.viewSize.height?.resolvedValue() ?? bbox.height
 
     let colors = stops.compactMap { stop -> CGColor? in
         let alpha = fillAlpha * (stop.opacity ?? 1)
@@ -386,12 +407,28 @@ private func loadDataImage(from href: String) -> CGImage? {
 
 private func resolveImageLength(_ length: Length?, defaultValue: Double, viewRef: Double) -> Double {
     guard let length else { return defaultValue }
-    switch length.unit {
-    case .percent:
-        return viewRef * length.value / 100
-    default:
-        return length.value
-    }
+    return length.resolvedValue(viewport: viewRef)
+}
+
+private func resolveViewReferences(_ drawContext: DrawContext) -> (width: Double, height: Double, fontSize: Double) {
+    let width = drawContext.viewBox?.width
+        ?? drawContext.viewSize.width?.resolvedValue()
+        ?? 0
+    let height = drawContext.viewBox?.height
+        ?? drawContext.viewSize.height?.resolvedValue()
+        ?? 0
+    let fontSize = resolveFontSize(drawContext.presentation.fontSize, viewRef: height, fallback: 16)
+    return (width, height, fontSize)
+}
+
+private func resolveLength(
+    _ length: Length?,
+    viewRef: Double,
+    fontSize: Double,
+    defaultValue: Double = 0
+) -> Double {
+    guard let length else { return defaultValue }
+    return length.resolvedValue(fontSize: fontSize, viewport: viewRef)
 }
 
 private func drawText(
@@ -403,7 +440,7 @@ private func drawText(
 #if canImport(CoreText)
     guard !runs.isEmpty else { return .continue }
 
-    let viewRefHeight = drawContext.viewBox?.height ?? drawContext.viewSize.height?.value ?? 16
+    let viewRefHeight = drawContext.viewBox?.height ?? drawContext.viewSize.height?.resolvedValue() ?? 16
     let defaultFontSize = resolveFontSize(nil, viewRef: viewRefHeight, fallback: 16)
     let attributed = NSMutableAttributedString()
 
@@ -459,12 +496,7 @@ private func drawText(
 
 private func resolveFontSize(_ length: Length?, viewRef: Double, fallback: Double) -> Double {
     guard let length else { return fallback }
-    switch length.unit {
-    case .percent:
-        return viewRef * length.value / 100
-    default:
-        return length.value
-    }
+    return length.resolvedValue(viewport: viewRef)
 }
 
 private func makeFont(from presentation: PresentationAttributes, viewRef: Double, fallbackSize: Double) -> CTFont {
@@ -620,8 +652,8 @@ private func drawPattern(
     drawContext: DrawContext
 ) -> Bool {
     let bbox = path.boundingBoxOfPath
-    let viewRefWidth = drawContext.viewBox?.width ?? drawContext.viewSize.width?.value ?? bbox.width
-    let viewRefHeight = drawContext.viewBox?.height ?? drawContext.viewSize.height?.value ?? bbox.height
+    let viewRefWidth = drawContext.viewBox?.width ?? drawContext.viewSize.width?.resolvedValue() ?? bbox.width
+    let viewRefHeight = drawContext.viewBox?.height ?? drawContext.viewSize.height?.resolvedValue() ?? bbox.height
 
     let units = pattern.patternUnits ?? .objectBoundingBox
     let contentUnits = pattern.patternContentUnits ?? .userSpaceOnUse
@@ -736,7 +768,7 @@ private func resolvePatternPosition(
         if length?.unit == .percent {
             return viewRef * (value / 100)
         }
-        return value
+        return length?.resolvedValue() ?? defaultValue
     }
 }
 
@@ -758,7 +790,7 @@ private func resolvePatternSize(
         if length?.unit == .percent {
             return viewRef * (value / 100)
         }
-        return value
+        return length?.resolvedValue() ?? defaultValue
     }
 }
 
@@ -778,7 +810,7 @@ private func resolveCoordinate(
         if length?.unit == .percent {
             return viewRef * (value / 100)
         }
-        return value
+        return length?.resolvedValue() ?? defaultValue
     }
 }
 
@@ -799,7 +831,7 @@ private func resolveRadius(
         if length?.unit == .percent {
             return viewRef * (value / 100)
         }
-        return value
+        return length?.resolvedValue() ?? defaultValue
     }
 }
 

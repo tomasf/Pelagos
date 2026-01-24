@@ -23,6 +23,33 @@ public struct Length: Hashable, Sendable {
         self.unit = unit
     }
 
+    public func resolvedValue(
+        dpi: Double = 96,
+        fontSize: Double = 16,
+        viewport: Double? = nil
+    ) -> Double {
+        switch unit {
+        case .percent:
+            return (viewport ?? 0) * value / 100
+        case .px, .none:
+            return value
+        case .in:
+            return value * dpi
+        case .cm:
+            return value * dpi / 2.54
+        case .mm:
+            return value * dpi / 25.4
+        case .pt:
+            return value * dpi / 72
+        case .pc:
+            return value * dpi / 6
+        case .em:
+            return value * fontSize
+        case .ex:
+            return value * fontSize * 0.5
+        }
+    }
+
     public static let zero = Length(0)
 
     public static func px(_ value: Double) -> Length { Length(value, .px) }
