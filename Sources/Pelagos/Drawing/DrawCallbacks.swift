@@ -90,38 +90,6 @@ public enum DrawDirective: Sendable {
     case stop
 }
 
-public struct TextRun: Hashable, Sendable {
-    public var text: String
-    public var presentation: PresentationAttributes
-
-    public init(text: String, presentation: PresentationAttributes) {
-        self.text = text
-        self.presentation = presentation
-    }
-}
-
-public enum DrawEvent: Sendable {
-    case beginSVG(SVG)
-    case endSVG(SVG)
-    case beginGroup(Group)
-    case endGroup(Group)
-    case beginAnchor(Anchor)
-    case endAnchor(Anchor)
-    case beginSwitch(Switch)
-    case endSwitch(Switch)
-    case drawRect(Rect, resolved: ResolvedRect)
-    case drawCircle(Circle, resolved: ResolvedCircle)
-    case drawEllipse(Ellipse, resolved: ResolvedEllipse)
-    case drawLine(Line, resolved: ResolvedLine)
-    case drawPolyline(Polyline, resolved: ResolvedPolyline)
-    case drawPolygon(Polygon, resolved: ResolvedPolygon)
-    case drawPath(Path)
-    case drawText(Text, runs: [TextRun])
-    case drawImage(Image, resolved: ResolvedImage?)
-    case use(Use, resolved: (any GraphicElement)?)
-    case defs(Defs)
-}
-
 public struct ResolvedImage: Sendable {
     public var data: Data
     public var mimeType: String?
@@ -129,6 +97,42 @@ public struct ResolvedImage: Sendable {
     public init(data: Data, mimeType: String? = nil) {
         self.data = data
         self.mimeType = mimeType
+    }
+}
+
+public struct ResolvedImageLayout: Sendable {
+    public var x: Double
+    public var y: Double
+    public var width: Double?
+    public var height: Double?
+}
+
+public struct ResolvedText: Sendable {
+    public var runs: [ResolvedTextRun]
+    public var x: Double
+    public var y: Double
+    public var textAnchor: TextAnchor
+}
+
+public struct ResolvedTextRun: Hashable, Sendable {
+    public var text: String
+    public var fontFamily: String?
+    public var fontSize: Double
+    public var fillColor: Color?
+    public var fillAlpha: Double
+
+    public init(
+        text: String,
+        fontFamily: String?,
+        fontSize: Double,
+        fillColor: Color?,
+        fillAlpha: Double
+    ) {
+        self.text = text
+        self.fontFamily = fontFamily
+        self.fontSize = fontSize
+        self.fillColor = fillColor
+        self.fillAlpha = fillAlpha
     }
 }
 
@@ -170,30 +174,71 @@ public struct ResolvedPolygon: Sendable {
 }
 
 public protocol DrawCallback: Sendable {
-    func handle(event: DrawEvent, context: DrawContext) -> DrawDirective
+    func beginSVG(_ svg: SVG, context: DrawContext) -> DrawDirective
+    func endSVG(_ svg: SVG, context: DrawContext) -> DrawDirective
+    func beginGroup(_ group: Group, context: DrawContext) -> DrawDirective
+    func endGroup(_ group: Group, context: DrawContext) -> DrawDirective
+    func beginAnchor(_ anchor: Anchor, context: DrawContext) -> DrawDirective
+    func endAnchor(_ anchor: Anchor, context: DrawContext) -> DrawDirective
+    func beginSwitch(_ switchNode: Switch, context: DrawContext) -> DrawDirective
+    func endSwitch(_ switchNode: Switch, context: DrawContext) -> DrawDirective
+    func drawRect(_ rect: Rect, resolved: ResolvedRect, context: DrawContext) -> DrawDirective
+    func drawCircle(_ circle: Circle, resolved: ResolvedCircle, context: DrawContext) -> DrawDirective
+    func drawEllipse(_ ellipse: Ellipse, resolved: ResolvedEllipse, context: DrawContext) -> DrawDirective
+    func drawLine(_ line: Line, resolved: ResolvedLine, context: DrawContext) -> DrawDirective
+    func drawPolyline(_ polyline: Polyline, resolved: ResolvedPolyline, context: DrawContext) -> DrawDirective
+    func drawPolygon(_ polygon: Polygon, resolved: ResolvedPolygon, context: DrawContext) -> DrawDirective
+    func drawPath(_ path: Path, context: DrawContext) -> DrawDirective
+    func drawText(_ text: Text, resolved: ResolvedText, context: DrawContext) -> DrawDirective
+    func drawImage(_ image: Image, resolved: ResolvedImage?, layout: ResolvedImageLayout, context: DrawContext) -> DrawDirective
+    func use(_ use: Use, resolved: (any GraphicElement)?, context: DrawContext) -> DrawDirective
+    func defs(_ defs: Defs, context: DrawContext) -> DrawDirective
+}
+
+public extension DrawCallback {
+    func beginSVG(_ svg: SVG, context: DrawContext) -> DrawDirective { .continue }
+    func endSVG(_ svg: SVG, context: DrawContext) -> DrawDirective { .continue }
+    func beginGroup(_ group: Group, context: DrawContext) -> DrawDirective { .continue }
+    func endGroup(_ group: Group, context: DrawContext) -> DrawDirective { .continue }
+    func beginAnchor(_ anchor: Anchor, context: DrawContext) -> DrawDirective { .continue }
+    func endAnchor(_ anchor: Anchor, context: DrawContext) -> DrawDirective { .continue }
+    func beginSwitch(_ switchNode: Switch, context: DrawContext) -> DrawDirective { .continue }
+    func endSwitch(_ switchNode: Switch, context: DrawContext) -> DrawDirective { .continue }
+    func drawRect(_ rect: Rect, resolved: ResolvedRect, context: DrawContext) -> DrawDirective { .continue }
+    func drawCircle(_ circle: Circle, resolved: ResolvedCircle, context: DrawContext) -> DrawDirective { .continue }
+    func drawEllipse(_ ellipse: Ellipse, resolved: ResolvedEllipse, context: DrawContext) -> DrawDirective { .continue }
+    func drawLine(_ line: Line, resolved: ResolvedLine, context: DrawContext) -> DrawDirective { .continue }
+    func drawPolyline(_ polyline: Polyline, resolved: ResolvedPolyline, context: DrawContext) -> DrawDirective { .continue }
+    func drawPolygon(_ polygon: Polygon, resolved: ResolvedPolygon, context: DrawContext) -> DrawDirective { .continue }
+    func drawPath(_ path: Path, context: DrawContext) -> DrawDirective { .continue }
+    func drawText(_ text: Text, resolved: ResolvedText, context: DrawContext) -> DrawDirective { .continue }
+    func drawImage(_ image: Image, resolved: ResolvedImage?, layout: ResolvedImageLayout, context: DrawContext) -> DrawDirective { .continue }
+    func use(_ use: Use, resolved: (any GraphicElement)?, context: DrawContext) -> DrawDirective { .continue }
+    func defs(_ defs: Defs, context: DrawContext) -> DrawDirective { .continue }
 }
 
 public extension SVG {
     func walk(callback: DrawCallback, options: DrawOptions = DrawOptions()) {
         let resolvedPaint = resolvePaint(from: presentation)
+        let resolvedDefinitions = resolveDefinitions(definitions)
         var rootContext = DrawContext(
             presentation: presentation,
             resolvedPaint: resolvedPaint,
             transforms: presentation.transform ?? [],
             viewBox: viewBox,
             viewSize: (width, height),
-            definitions: definitions
+            definitions: resolvedDefinitions
         )
 
         if options.includeDefs {
             for defs in definitions.defs {
-                if callback.handle(event: .defs(defs), context: rootContext) == .stop {
+                if callback.defs(defs, context: rootContext) == .stop {
                     return
                 }
             }
         }
 
-        let directive = callback.handle(event: .beginSVG(self), context: rootContext)
+        let directive = callback.beginSVG(self, context: rootContext)
         if directive == .stop { return }
 
         if directive != .skipChildren {
@@ -202,7 +247,7 @@ public extension SVG {
             }
         }
 
-        _ = callback.handle(event: .endSVG(self), context: rootContext)
+        _ = callback.endSVG(self, context: rootContext)
     }
 }
 
@@ -228,38 +273,38 @@ private func walkElement(
 ) -> Bool {
     if let group = element as? Group {
         var childContext = inheritContext(context, element: group, options: options)
-        let directive = callback.handle(event: .beginGroup(group), context: childContext)
+        let directive = callback.beginGroup(group, context: childContext)
         if directive == .stop { return false }
         if directive != .skipChildren {
             if walkChildren(group.children, callback: callback, context: &childContext, options: options) == false {
                 return false
             }
         }
-        return callback.handle(event: .endGroup(group), context: childContext) != .stop
+        return callback.endGroup(group, context: childContext) != .stop
     }
 
     if let anchor = element as? Anchor {
         var childContext = inheritContext(context, element: anchor, options: options)
-        let directive = callback.handle(event: .beginAnchor(anchor), context: childContext)
+        let directive = callback.beginAnchor(anchor, context: childContext)
         if directive == .stop { return false }
         if directive != .skipChildren {
             if walkChildren(anchor.children, callback: callback, context: &childContext, options: options) == false {
                 return false
             }
         }
-        return callback.handle(event: .endAnchor(anchor), context: childContext) != .stop
+        return callback.endAnchor(anchor, context: childContext) != .stop
     }
 
     if let switchNode = element as? Switch {
         var childContext = inheritContext(context, element: switchNode, options: options)
-        let directive = callback.handle(event: .beginSwitch(switchNode), context: childContext)
+        let directive = callback.beginSwitch(switchNode, context: childContext)
         if directive == .stop { return false }
         if directive != .skipChildren {
             if walkSwitchChildren(switchNode.children, callback: callback, context: &childContext, options: options) == false {
                 return false
             }
         }
-        return callback.handle(event: .endSwitch(switchNode), context: childContext) != .stop
+        return callback.endSwitch(switchNode, context: childContext) != .stop
     }
 
         if let svg = element as? SVG {
@@ -273,14 +318,14 @@ private func walkElement(
             definitions: context.definitions
         )
 
-        let directive = callback.handle(event: .beginSVG(svg), context: childContext)
+        let directive = callback.beginSVG(svg, context: childContext)
         if directive == .stop { return false }
         if directive != .skipChildren {
             if walkChildren(svg.children, callback: callback, context: &childContext, options: options) == false {
                 return false
             }
         }
-        return callback.handle(event: .endSVG(svg), context: childContext) != .stop
+        return callback.endSVG(svg, context: childContext) != .stop
     }
 
     if let use = element as? Use {
@@ -296,7 +341,7 @@ private func walkElement(
         }
 
         let resolved = use.href.flatMap { context.definitions.elements[$0] }
-        let directive = callback.handle(event: .use(use, resolved: resolved), context: childContext)
+        let directive = callback.use(use, resolved: resolved, context: childContext)
         if directive == .stop { return false }
 
         if options.resolveUseElements, directive != .skipChildren, let resolved {
@@ -309,38 +354,39 @@ private func walkElement(
 
     if let rect = element as? Rect {
         let resolved = resolveRect(rect, context: leafContext)
-        return callback.handle(event: .drawRect(rect, resolved: resolved), context: leafContext) != .stop
+        return callback.drawRect(rect, resolved: resolved, context: leafContext) != .stop
     }
     if let circle = element as? Circle {
         let resolved = resolveCircle(circle, context: leafContext)
-        return callback.handle(event: .drawCircle(circle, resolved: resolved), context: leafContext) != .stop
+        return callback.drawCircle(circle, resolved: resolved, context: leafContext) != .stop
     }
     if let ellipse = element as? Ellipse {
         let resolved = resolveEllipse(ellipse, context: leafContext)
-        return callback.handle(event: .drawEllipse(ellipse, resolved: resolved), context: leafContext) != .stop
+        return callback.drawEllipse(ellipse, resolved: resolved, context: leafContext) != .stop
     }
     if let line = element as? Line {
         let resolved = resolveLine(line, context: leafContext)
-        return callback.handle(event: .drawLine(line, resolved: resolved), context: leafContext) != .stop
+        return callback.drawLine(line, resolved: resolved, context: leafContext) != .stop
     }
     if let polyline = element as? Polyline {
         let resolved = ResolvedPolyline(points: polyline.points)
-        return callback.handle(event: .drawPolyline(polyline, resolved: resolved), context: leafContext) != .stop
+        return callback.drawPolyline(polyline, resolved: resolved, context: leafContext) != .stop
     }
     if let polygon = element as? Polygon {
         let resolved = ResolvedPolygon(points: polygon.points)
-        return callback.handle(event: .drawPolygon(polygon, resolved: resolved), context: leafContext) != .stop
+        return callback.drawPolygon(polygon, resolved: resolved, context: leafContext) != .stop
     }
     if let path = element as? Path {
-        return callback.handle(event: .drawPath(path), context: leafContext) != .stop
+        return callback.drawPath(path, context: leafContext) != .stop
     }
     if let text = element as? Text {
-        let runs = buildTextRuns(from: text.content, basePresentation: leafContext.presentation)
-        return callback.handle(event: .drawText(text, runs: runs), context: leafContext) != .stop
+        let resolved = resolveText(text, context: leafContext)
+        return callback.drawText(text, resolved: resolved, context: leafContext) != .stop
     }
     if let image = element as? Image {
         let resolved = resolveImage(from: image.href)
-        return callback.handle(event: .drawImage(image, resolved: resolved), context: leafContext) != .stop
+        let layout = resolveImageLayout(image, context: leafContext)
+        return callback.drawImage(image, resolved: resolved, layout: layout, context: leafContext) != .stop
     }
 
     return true
@@ -349,6 +395,15 @@ private func walkElement(
 private func resolveImage(from href: String?) -> ResolvedImage? {
     guard let href, href.hasPrefix("data:") else { return nil }
     return decodeDataURL(href)
+}
+
+private func resolveImageLayout(_ image: Image, context: DrawContext) -> ResolvedImageLayout {
+    let refs = resolveViewReferences(context)
+    let x = resolveLength(image.x, viewRef: refs.width, fontSize: refs.fontSize)
+    let y = resolveLength(image.y, viewRef: refs.height, fontSize: refs.fontSize)
+    let width = image.width.map { resolveLength($0, viewRef: refs.width, fontSize: refs.fontSize) }
+    let height = image.height.map { resolveLength($0, viewRef: refs.height, fontSize: refs.fontSize) }
+    return ResolvedImageLayout(x: x, y: y, width: width, height: height)
 }
 
 private func resolveRect(_ rect: Rect, context: DrawContext) -> ResolvedRect {
@@ -386,6 +441,41 @@ private func resolveLine(_ line: Line, context: DrawContext) -> ResolvedLine {
     let x2 = resolveLength(line.x2, viewRef: refs.width, fontSize: refs.fontSize)
     let y2 = resolveLength(line.y2, viewRef: refs.height, fontSize: refs.fontSize)
     return ResolvedLine(x1: x1, y1: y1, x2: x2, y2: y2)
+}
+
+private func resolveText(_ text: Text, context: DrawContext) -> ResolvedText {
+    let refs = resolveViewReferences(context)
+    let runs = buildResolvedTextRuns(
+        from: text.content,
+        basePresentation: context.presentation,
+        viewRefHeight: refs.height
+    )
+    let x = resolveLength(text.x?.first, viewRef: refs.width, fontSize: refs.fontSize)
+    let y = resolveLength(text.y?.first, viewRef: refs.height, fontSize: refs.fontSize)
+    let dx = resolveLength(text.dx?.first, viewRef: refs.width, fontSize: refs.fontSize)
+    let dy = resolveLength(text.dy?.first, viewRef: refs.height, fontSize: refs.fontSize)
+    let anchor = context.presentation.textAnchor ?? .start
+    return ResolvedText(runs: runs, x: x + dx, y: y + dy, textAnchor: anchor)
+}
+
+private func resolveTextRun(
+    text: String,
+    presentation: PresentationAttributes,
+    fallbackFontSize: Double,
+    viewRefHeight: Double
+) -> ResolvedTextRun {
+    let fontSize = presentation.fontSize?.resolvedValue(viewport: viewRefHeight) ?? fallbackFontSize
+    let opacity = presentation.opacity ?? 1
+    let fillOpacity = presentation.fillOpacity ?? 1
+    let fillAlpha = opacity * fillOpacity
+    let fillColor = resolveFillColor(from: presentation.fill)
+    return ResolvedTextRun(
+        text: text,
+        fontFamily: presentation.fontFamily,
+        fontSize: fontSize,
+        fillColor: fillColor,
+        fillAlpha: fillAlpha
+    )
 }
 
 private func resolveViewReferences(_ context: DrawContext) -> (width: Double, height: Double, fontSize: Double) {
@@ -451,18 +541,38 @@ private func inheritContext(
     )
 }
 
-private func buildTextRuns(from content: [TextContent], basePresentation: PresentationAttributes) -> [TextRun] {
-    var runs: [TextRun] = []
+private func buildResolvedTextRuns(
+    from content: [TextContent],
+    basePresentation: PresentationAttributes,
+    viewRefHeight: Double
+) -> [ResolvedTextRun] {
+    var runs: [ResolvedTextRun] = []
+    let baseFontSize = basePresentation.fontSize?.resolvedValue(viewport: viewRefHeight) ?? 16
+
     for item in content {
         switch item {
         case .text(let text):
-            runs.append(TextRun(text: text, presentation: basePresentation))
+            runs.append(resolveTextRun(
+                text: text,
+                presentation: basePresentation,
+                fallbackFontSize: baseFontSize,
+                viewRefHeight: viewRefHeight
+            ))
         case .span(let tspan):
             let presentation = basePresentation.merged(with: tspan.presentation)
-            runs.append(contentsOf: buildTextRuns(from: tspan.content, basePresentation: presentation))
+            runs.append(contentsOf: buildResolvedTextRuns(
+                from: tspan.content,
+                basePresentation: presentation,
+                viewRefHeight: viewRefHeight
+            ))
         case .reference(let textPath):
             let presentation = basePresentation.merged(with: textPath.presentation)
-            runs.append(TextRun(text: textPath.content, presentation: presentation))
+            runs.append(resolveTextRun(
+                text: textPath.content,
+                presentation: presentation,
+                fallbackFontSize: baseFontSize,
+                viewRefHeight: viewRefHeight
+            ))
         }
     }
     return runs
@@ -509,9 +619,9 @@ private func resolveFillColor(from fill: Fill?) -> Color? {
     case .some(.none):
         return nil
     case .some(.color(let color)):
-        return color
+        return resolveColor(color)
     case .some(.urlWithFallback(_, let fallback)):
-        return fallback
+        return resolveColor(fallback)
     case .some(.url):
         return nil
     case nil:
@@ -524,12 +634,54 @@ private func resolveStrokeColor(from stroke: Fill?) -> Color? {
     case .some(.none):
         return nil
     case .some(.color(let color)):
-        return color
+        return resolveColor(color)
     case .some(.urlWithFallback(_, let fallback)):
-        return fallback
+        return resolveColor(fallback)
     case .some(.url):
         return nil
     case nil:
         return nil
+    }
+}
+
+private func resolveColor(_ color: Color) -> Color {
+    switch color {
+    case .named(let name):
+        return Color.namedColors[name] ?? .black
+    case .currentColor:
+        return .black
+    default:
+        return color
+    }
+}
+
+private func resolveDefinitions(_ definitions: Definitions) -> Definitions {
+    var resolved = definitions
+    guard !definitions.gradients.isEmpty else { return resolved }
+
+    var gradients: [String: any GradientElement] = [:]
+    gradients.reserveCapacity(definitions.gradients.count)
+    for (key, gradient) in definitions.gradients {
+        if let linear = gradient as? LinearGradient {
+            var copy = linear
+            copy.stops = resolveGradientStops(linear.stops)
+            gradients[key] = copy
+        } else if let radial = gradient as? RadialGradient {
+            var copy = radial
+            copy.stops = resolveGradientStops(radial.stops)
+            gradients[key] = copy
+        } else {
+            gradients[key] = gradient
+        }
+    }
+    resolved.gradients = gradients
+    return resolved
+}
+
+private func resolveGradientStops(_ stops: [GradientStop]) -> [GradientStop] {
+    stops.map { stop in
+        var resolved = stop
+        resolved.color = resolveColor(stop.color)
+        return resolved
     }
 }
