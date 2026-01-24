@@ -4,6 +4,9 @@ import Foundation
 #if canImport(ImageIO)
 import ImageIO
 #endif
+#if canImport(CoreText)
+import CoreText
+#endif
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
 public final class CGContextRenderer: DrawCallback, @unchecked Sendable {
@@ -82,8 +85,8 @@ public final class CGContextRenderer: DrawCallback, @unchecked Sendable {
                 $0.addPath(buildPath(from: path.segments))
             }
 
-        case .drawText:
-            return .continue
+        case .drawText(let text, let runs):
+            return drawText(context: context, drawContext: drawContext, text: text, runs: runs)
         case .drawImage(let image):
             return drawImage(context: context, drawContext: drawContext, image: image)
         }
@@ -388,6 +391,104 @@ private func resolveImageLength(_ length: Length?, defaultValue: Double, viewRef
         return viewRef * length.value / 100
     default:
         return length.value
+    }
+}
+
+private func drawText(
+    context: CGContext,
+    drawContext: DrawContext,
+    text: Text,
+    runs: [TextRun]
+) -> DrawDirective {
+#if canImport(CoreText)
+    guard !runs.isEmpty else { return .continue }
+
+    let viewRefHeight = drawContext.viewBox?.height ?? drawContext.viewSize.height?.value ?? 16
+    let defaultFontSize = resolveFontSize(nil, viewRef: viewRefHeight, fallback: 16)
+    let attributed = NSMutableAttributedString()
+
+    for run in runs {
+        let font = makeFont(from: run.presentation, viewRef: viewRefHeight, fallbackSize: defaultFontSize)
+        let color = resolveTextFill(from: run.presentation) ?? .black
+        let alpha = (run.presentation.opacity ?? 1) * (run.presentation.fillOpacity ?? 1)
+        let cgColor = cgColor(from: color, opacity: alpha) ?? CGColor(gray: 0, alpha: 1)
+        let attrs: [NSAttributedString.Key: Any] = [
+            NSAttributedString.Key(kCTFontAttributeName as String): font,
+            NSAttributedString.Key(kCTForegroundColorAttributeName as String): cgColor
+        ]
+        attributed.append(NSAttributedString(string: run.text, attributes: attrs))
+    }
+
+    let line = CTLineCreateWithAttributedString(attributed)
+    var x = text.x?.first?.value ?? 0
+    var y = text.y?.first?.value ?? 0
+
+    if let dx = text.dx?.first?.value {
+        x += dx
+    }
+    if let dy = text.dy?.first?.value {
+        y += dy
+    }
+
+    let anchor = drawContext.presentation.textAnchor ?? .start
+    if anchor != .start {
+        let width = CTLineGetTypographicBounds(line, nil, nil, nil)
+        switch anchor {
+        case .middle:
+            x -= width / 2
+        case .end:
+            x -= width
+        case .start:
+            break
+        }
+    }
+
+    context.saveGState()
+    defer { context.restoreGState() }
+
+    let transform = makeTransform(from: drawContext.transforms)
+    context.concatenate(transform)
+    context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
+    context.textPosition = CGPoint(x: x, y: y)
+    CTLineDraw(line, context)
+    return .continue
+#else
+    return .continue
+#endif
+}
+
+private func resolveFontSize(_ length: Length?, viewRef: Double, fallback: Double) -> Double {
+    guard let length else { return fallback }
+    switch length.unit {
+    case .percent:
+        return viewRef * length.value / 100
+    default:
+        return length.value
+    }
+}
+
+private func makeFont(from presentation: PresentationAttributes, viewRef: Double, fallbackSize: Double) -> CTFont {
+    let size = resolveFontSize(presentation.fontSize, viewRef: viewRef, fallback: fallbackSize)
+    let family = presentation.fontFamily?
+        .split(separator: ",")
+        .first
+        .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "\"' ")) }
+    let name = family?.isEmpty == false ? family! : "Helvetica"
+    return CTFontCreateWithName(name as CFString, size, nil)
+}
+
+private func resolveTextFill(from presentation: PresentationAttributes) -> Color? {
+    switch presentation.fill {
+    case .some(.none):
+        return nil
+    case .some(.color(let color)):
+        return color
+    case .some(.urlWithFallback(_, let fallback)):
+        return fallback
+    case .some(.url):
+        return .black
+    case nil:
+        return .black
     }
 }
 

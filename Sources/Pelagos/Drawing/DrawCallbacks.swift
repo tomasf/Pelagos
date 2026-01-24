@@ -354,6 +354,8 @@ private func resolvePaint(from presentation: PresentationAttributes) -> Resolved
     let fillColor = resolveFillColor(from: presentation.fill)
     let strokeColor = resolveStrokeColor(from: presentation.stroke)
 
+    let miterLimit = presentation.strokeMiterLimit ?? 4
+
     return ResolvedPaint(
         fillColor: fillColor,
         strokeColor: strokeColor,
@@ -363,7 +365,7 @@ private func resolvePaint(from presentation: PresentationAttributes) -> Resolved
         lineWidth: presentation.strokeWidth?.value,
         lineCap: presentation.strokeLineCap,
         lineJoin: presentation.strokeLineJoin,
-        miterLimit: presentation.strokeMiterLimit,
+        miterLimit: miterLimit,
         dashArray: presentation.strokeDashArray?.map { $0.value },
         dashOffset: presentation.strokeDashOffset?.value
     )

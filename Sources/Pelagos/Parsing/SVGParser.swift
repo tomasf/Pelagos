@@ -451,8 +451,8 @@ public struct SVGParser {
 
         for child in node.children {
             if child.kind == .text || child.kind == .cdata {
-                let text = child.value
-                if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let text = normalizeTextContent(child.value)
+                if !text.isEmpty {
                     content.append(.text(text))
                 }
             } else if child.kind == .element {
@@ -470,6 +470,15 @@ public struct SVGParser {
         }
 
         return content
+    }
+
+    private func normalizeTextContent(_ text: String) -> String {
+        let collapsed = text.replacingOccurrences(
+            of: "\\s+",
+            with: " ",
+            options: .regularExpression
+        )
+        return collapsed.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
