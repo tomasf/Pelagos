@@ -299,6 +299,23 @@ struct SVGParsingTests {
         }
     }
 
+    @Test func `parses namespaced SVG elements with prefixes`() throws {
+        let parser = SVGParser()
+        let svg = try parser.parse(string: """
+            <svg:svg xmlns:svg="http://www.w3.org/2000/svg">
+                <svg:rect width="10" height="10"/>
+            </svg:svg>
+            """)
+
+        #expect(svg.children.count == 1)
+        if let rect = svg.children.first as? Rect {
+            #expect(rect.width.value == 10)
+            #expect(rect.height.value == 10)
+        } else {
+            Issue.record("Expected Rect")
+        }
+    }
+
     @Test func `applies CSS selectors with descendant and attribute rules`() throws {
         let parser = SVGParser()
         let svg = try parser.parse(string: """

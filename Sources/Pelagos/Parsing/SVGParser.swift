@@ -32,7 +32,7 @@ public struct SVGParser {
             throw SVGParseError.noRootElement
         }
 
-        guard root.name == "svg" else {
+        guard root.isSVGElement(SVGElementName.svg) else {
             throw SVGParseError.invalidRootElement(root.name)
         }
 
@@ -67,7 +67,7 @@ public struct SVGParser {
         guard node.kind == .element else { return }
 
         // Collect style elements
-        if node.name == "style" {
+        if node.isSVGElement(SVGElementName.style) {
             let cssText = node.textContent
             let rules = CSSParser.parse(cssText)
             styles.append(contentsOf: rules)
@@ -87,7 +87,7 @@ public struct SVGParser {
         let childAncestors = ancestors + [node]
 
         // Process defs container
-        if node.name == "defs" {
+        if node.isSVGElement(SVGElementName.defs) {
             for child in node.elements {
                 collectDefinition(from: child, into: &definitions, styleRules: styleRules, ancestors: childAncestors)
             }
@@ -102,47 +102,46 @@ public struct SVGParser {
     private func collectDefinition(from node: Node, into definitions: inout Definitions, styleRules: [CSSRule], ancestors: [Node]) {
         guard let id = node[attribute: "id"], !id.isEmpty else { return }
 
-        switch node.name {
-        case "linearGradient":
+        if node.isSVGElement(SVGElementName.linearGradient) {
             let stops = parseGradientStops(from: node)
             let gradient = ElementParsers.parseLinearGradient(from: node, stops: stops)
             definitions.gradients[id] = gradient
 
-        case "radialGradient":
+        } else if node.isSVGElement(SVGElementName.radialGradient) {
             let stops = parseGradientStops(from: node)
             let gradient = ElementParsers.parseRadialGradient(from: node, stops: stops)
             definitions.gradients[id] = gradient
 
-        case "pattern":
+        } else if node.isSVGElement(SVGElementName.pattern) {
             var innerDefs = definitions
             let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules, ancestors: ancestors)) ?? []
             let pattern = ElementParsers.parsePattern(from: node, children: children)
             definitions.patterns[id] = pattern
 
-        case "clipPath":
+        } else if node.isSVGElement(SVGElementName.clipPath) {
             var innerDefs = definitions
             let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules, ancestors: ancestors)) ?? []
             let clipPath = ElementParsers.parseClipPath(from: node, children: children)
             definitions.clipPaths[id] = clipPath
 
-        case "mask":
+        } else if node.isSVGElement(SVGElementName.mask) {
             var innerDefs = definitions
             let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules, ancestors: ancestors)) ?? []
             let mask = ElementParsers.parseMask(from: node, children: children)
             definitions.masks[id] = mask
 
-        case "filter":
+        } else if node.isSVGElement(SVGElementName.filter) {
             let primitives = parseFilterPrimitives(from: node)
             let filter = ElementParsers.parseFilter(from: node, primitives: primitives)
             definitions.filters[id] = filter
 
-        case "symbol":
+        } else if node.isSVGElement(SVGElementName.symbol) {
             var innerDefs = definitions
             let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules, ancestors: ancestors)) ?? []
             let symbol = ElementParsers.parseSymbol(from: node, children: children)
             definitions.symbols[id] = symbol
 
-        default:
+        } else {
             // Store other elements with ids for use references
             if let graphic = try? parseElement(node, definitions: &definitions, styleRules: styleRules, ancestors: ancestors) {
                 definitions.elements[id] = graphic
@@ -154,7 +153,7 @@ public struct SVGParser {
         guard node.kind == .element else { return }
         let childAncestors = ancestors + [node]
 
-        if node.name == "defs" {
+        if node.isSVGElement(SVGElementName.defs) {
             var innerDefs = definitions
             let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules, ancestors: childAncestors)) ?? []
             let defs = Defs(id: node[attribute: "id"], children: children)
@@ -174,13 +173,20 @@ public struct SVGParser {
 
         for child in parent.elements {
             // Skip defs, style, and non-graphic elements
-            if child.name == "defs" || child.name == "style" || child.name == "desc" ||
-               child.name == "title" || child.name == "metadata" {
+            if child.isSVGElement(SVGElementName.defs) || child.isSVGElement(SVGElementName.style) ||
+               child.isSVGElement(SVGElementName.desc) || child.isSVGElement(SVGElementName.title) ||
+               child.isSVGElement(SVGElementName.metadata) {
                 continue
             }
 
             // Skip definition elements at top level (they're in defs)
-            if ["linearGradient", "radialGradient", "pattern", "clipPath", "mask", "filter", "symbol"].contains(child.name) {
+            if child.isSVGElement(SVGElementName.linearGradient) ||
+               child.isSVGElement(SVGElementName.radialGradient) ||
+               child.isSVGElement(SVGElementName.pattern) ||
+               child.isSVGElement(SVGElementName.clipPath) ||
+               child.isSVGElement(SVGElementName.mask) ||
+               child.isSVGElement(SVGElementName.filter) ||
+               child.isSVGElement(SVGElementName.symbol) {
                 // Still collect them if they have ids
                 if child[attribute: "id"] != nil {
                     collectDefinition(from: child, into: &definitions, styleRules: styleRules, ancestors: childAncestors)
@@ -202,35 +208,34 @@ public struct SVGParser {
     }
 
     private func parseElement(_ node: Node, definitions: inout Definitions, styleRules: [CSSRule], ancestors: [Node]) throws -> (any GraphicElement)? {
-        switch node.name {
         // Shapes
-        case "rect":
+        if node.isSVGElement(SVGElementName.rect) {
             return ElementParsers.parseRect(from: node, styleRules: styleRules, ancestors: ancestors)
 
-        case "circle":
+        } else if node.isSVGElement(SVGElementName.circle) {
             return ElementParsers.parseCircle(from: node, styleRules: styleRules, ancestors: ancestors)
 
-        case "ellipse":
+        } else if node.isSVGElement(SVGElementName.ellipse) {
             return ElementParsers.parseEllipse(from: node, styleRules: styleRules, ancestors: ancestors)
 
-        case "line":
+        } else if node.isSVGElement(SVGElementName.line) {
             return ElementParsers.parseLine(from: node, styleRules: styleRules, ancestors: ancestors)
 
-        case "polyline":
+        } else if node.isSVGElement(SVGElementName.polyline) {
             return ElementParsers.parsePolyline(from: node, styleRules: styleRules, ancestors: ancestors)
 
-        case "polygon":
+        } else if node.isSVGElement(SVGElementName.polygon) {
             return ElementParsers.parsePolygon(from: node, styleRules: styleRules, ancestors: ancestors)
 
-        case "path":
+        } else if node.isSVGElement(SVGElementName.path) {
             return try ElementParsers.parsePath(from: node, styleRules: styleRules, ancestors: ancestors)
 
         // Containers
-        case "g":
+        } else if node.isSVGElement(SVGElementName.g) {
             let children = try parseChildren(of: node, definitions: &definitions, styleRules: styleRules, ancestors: ancestors)
             return ElementParsers.parseGroup(from: node, children: children, styleRules: styleRules, ancestors: ancestors)
 
-        case "svg":
+        } else if node.isSVGElement(SVGElementName.svg) {
             // Nested SVG
             let children = try parseChildren(of: node, definitions: &definitions, styleRules: styleRules, ancestors: ancestors)
             return SVG(
@@ -244,30 +249,30 @@ public struct SVGParser {
                 presentation: PresentationParser.parse(from: node, styleRules: styleRules, ancestors: ancestors)
             )
 
-        case "a":
+        } else if node.isSVGElement(SVGElementName.anchor) {
             let children = try parseChildren(of: node, definitions: &definitions, styleRules: styleRules, ancestors: ancestors)
             return ElementParsers.parseAnchor(from: node, children: children, styleRules: styleRules, ancestors: ancestors)
 
-        case "switch":
+        } else if node.isSVGElement(SVGElementName.switch) {
             let children = try parseChildren(of: node, definitions: &definitions, styleRules: styleRules, ancestors: ancestors)
             return ElementParsers.parseSwitch(from: node, children: children, styleRules: styleRules, ancestors: ancestors)
 
         // References
-        case "use":
+        } else if node.isSVGElement(SVGElementName.use) {
             return ElementParsers.parseUse(from: node, styleRules: styleRules, ancestors: ancestors)
 
         // Content
-        case "image":
+        } else if node.isSVGElement(SVGElementName.image) {
             return ElementParsers.parseImage(from: node, styleRules: styleRules, ancestors: ancestors)
 
-        case "text":
+        } else if node.isSVGElement(SVGElementName.text) {
             let content = parseTextContent(from: node, styleRules: styleRules, ancestors: ancestors)
             return ElementParsers.parseText(from: node, content: content, styleRules: styleRules, ancestors: ancestors)
 
-        default:
-            // Unknown element - skip
-            return nil
         }
+
+        // Unknown element - skip
+        return nil
     }
 
     // MARK: - Reference Resolution
@@ -412,7 +417,7 @@ public struct SVGParser {
         var stops: [GradientStop] = []
 
         for child in node.elements {
-            if child.name == "stop", let stop = ElementParsers.parseGradientStop(from: child) {
+            if child.isSVGElement(SVGElementName.stop), let stop = ElementParsers.parseGradientStop(from: child) {
                 stops.append(stop)
             }
         }
@@ -447,19 +452,15 @@ public struct SVGParser {
                     content.append(.text(text))
                 }
             } else if child.kind == .element {
-                switch child.name {
-                case "tspan":
+                if child.isSVGElement(SVGElementName.tspan) {
                     let innerContent = parseTextContent(from: child, styleRules: styleRules, ancestors: childAncestors)
                     let tspan = ElementParsers.parseTSpan(from: child, content: innerContent, styleRules: styleRules, ancestors: childAncestors)
                     content.append(.span(tspan))
 
-                case "textPath":
+                } else if child.isSVGElement(SVGElementName.textPath) {
                     let text = child.textContent
                     let textPath = ElementParsers.parseTextPath(from: child, content: text, styleRules: styleRules, ancestors: childAncestors)
                     content.append(.reference(textPath))
-
-                default:
-                    break
                 }
             }
         }

@@ -329,7 +329,7 @@ struct PresentationParser {
     private static func matches(_ compound: CompoundSelector?, node: Node) -> Bool {
         guard let compound else { return false }
 
-        if let tagName = compound.tagName, tagName != "*" && tagName != node.name {
+        if let tagName = compound.tagName, tagName != "*" && !matchesTagName(tagName, node: node) {
             return false
         }
 
@@ -347,12 +347,40 @@ struct PresentationParser {
         }
 
         for attribute in compound.attributes {
-            guard let value = node[attribute: attribute.name] else { return false }
+            let (prefix, localName) = splitQualifiedName(attribute.name)
+            guard let value = node.attribute(localName: localName, prefix: prefix) else { return false }
             if let expected = attribute.value, value != expected {
                 return false
             }
         }
 
         return true
+    }
+
+    private static func matchesTagName(_ tagName: String, node: Node) -> Bool {
+        let (prefix, localName) = splitQualifiedName(tagName)
+
+        guard node.localName == localName else { return false }
+
+        if let prefix {
+            guard let namespaceURI = node.namespacesInScope[prefix] else { return false }
+            return node.expandedName.namespaceName == namespaceURI
+        }
+
+        return true
+    }
+
+    private static func splitQualifiedName(_ name: String) -> (prefix: String?, localName: String) {
+        if let separator = name.firstIndex(of: ":") {
+            let prefix = String(name[..<separator])
+            let localName = String(name[name.index(after: separator)...])
+            return (prefix.isEmpty ? nil : prefix, localName)
+        }
+        if let separator = name.firstIndex(of: "|") {
+            let prefix = String(name[..<separator])
+            let localName = String(name[name.index(after: separator)...])
+            return (prefix.isEmpty ? nil : prefix, localName)
+        }
+        return (nil, name)
     }
 }

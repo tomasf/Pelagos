@@ -94,7 +94,7 @@ enum ElementParsers {
     static func parseAnchor(from node: Node, children: [any GraphicElement], styleRules: [CSSRule] = [], ancestors: [Node] = []) -> Anchor {
         Anchor(
             id: node[attribute: "id"],
-            href: node[attribute: "href"] ?? node[attribute: "xlink:href"],
+            href: parseHref(from: node),
             target: node[attribute: "target"],
             children: children,
             presentation: PresentationParser.parse(from: node, styleRules: styleRules, ancestors: ancestors)
@@ -256,7 +256,10 @@ enum ElementParsers {
         let input = node[attribute: "in"]
         let result = node[attribute: "result"]
 
-        switch node.name {
+        let localName = node.localName
+        guard node.isSVGElement(localName) else { return nil }
+
+        switch localName {
         case "feGaussianBlur":
             let stdDev = AttributeParser.parseDouble(node[attribute: "stdDeviation"]) ?? 0
             return .gaussianBlur(input: input, stdDeviation: stdDev, result: result)
@@ -372,7 +375,7 @@ enum ElementParsers {
     // MARK: - Helper
 
     private static func parseHref(from node: Node) -> String? {
-        let href = node[attribute: "href"] ?? node[attribute: "xlink:href"]
+        let href = node.svgAttribute("href") ?? node.xlinkAttribute("href")
         // Remove # prefix for local references
         if let href = href, href.hasPrefix("#") {
             return String(href.dropFirst())
