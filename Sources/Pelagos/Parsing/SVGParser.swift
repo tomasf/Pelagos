@@ -501,21 +501,23 @@ struct CSSParser {
     static func parse(_ css: String) -> [CSSRule] {
         var rules: [CSSRule] = []
 
+        let strippedCSS = stripComments(from: css)
+
         // Very basic CSS parsing - extract rule blocks
         let rulePattern = #"([^{]+)\{([^}]+)\}"#
         guard let regex = try? NSRegularExpression(pattern: rulePattern) else {
             return rules
         }
 
-        let range = NSRange(css.startIndex..., in: css)
-        let matches = regex.matches(in: css, range: range)
+        let range = NSRange(strippedCSS.startIndex..., in: strippedCSS)
+        let matches = regex.matches(in: strippedCSS, range: range)
 
         for match in matches {
-            guard let selectorRange = Range(match.range(at: 1), in: css),
-                  let bodyRange = Range(match.range(at: 2), in: css) else { continue }
+            guard let selectorRange = Range(match.range(at: 1), in: strippedCSS),
+                  let bodyRange = Range(match.range(at: 2), in: strippedCSS) else { continue }
 
-            let selector = String(css[selectorRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-            let body = String(css[bodyRange])
+            let selector = String(strippedCSS[selectorRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let body = String(strippedCSS[bodyRange])
 
             var properties: [String: String] = [:]
             let declarations = body.split(separator: ";")
@@ -531,6 +533,15 @@ struct CSSParser {
         }
 
         return rules
+    }
+
+    private static func stripComments(from css: String) -> String {
+        let pattern = #"/\*.*?\*/"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else {
+            return css
+        }
+        let range = NSRange(css.startIndex..., in: css)
+        return regex.stringByReplacingMatches(in: css, range: range, withTemplate: "")
     }
 }
 
