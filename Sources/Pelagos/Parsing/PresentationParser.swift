@@ -3,7 +3,7 @@ import Nodal
 
 /// Parser for presentation attributes from an SVG element
 struct PresentationParser {
-    static func parse(from node: Node, styleRules: [CSSRule] = []) -> PresentationAttributes {
+    static func parse(from node: Node, styleRules: [CSSRule] = [], ancestors: [Node] = []) -> PresentationAttributes {
         var attrs = parseAttributes(from: node)
 
         if !styleRules.isEmpty {
@@ -12,7 +12,7 @@ struct PresentationParser {
             var idRules: [CSSRule] = []
 
             for rule in styleRules {
-                if let specificity = matchSpecificity(for: rule, node: node) {
+                if let specificity = matchSpecificity(for: rule, node: node, ancestors: ancestors) {
                     switch specificity {
                     case .element:
                         elementRules.append(rule)
@@ -176,12 +176,12 @@ struct PresentationParser {
         case id = 2
     }
 
-    private static func matchSpecificity(for rule: CSSRule, node: Node) -> SelectorSpecificity? {
+    private static func matchSpecificity(for rule: CSSRule, node: Node, ancestors: [Node]) -> SelectorSpecificity? {
         let selectors = rule.selector.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
         var best: SelectorSpecificity?
 
         for selector in selectors {
-            if let specificity = matchSelector(selector, node: node) {
+            if let specificity = matchSelector(selector, node: node, ancestors: ancestors) {
                 if best == nil || specificity.rawValue > best!.rawValue {
                     best = specificity
                 }
@@ -191,19 +191,105 @@ struct PresentationParser {
         return best
     }
 
-    private static func matchSelector(_ selector: String, node: Node) -> SelectorSpecificity? {
-        if selector.isEmpty || selector.contains(where: { $0.isWhitespace }) {
+    private struct AttributeSelector {
+        var name: String
+        var value: String?
+    }
+
+    private struct CompoundSelector {
+        var tagName: String?
+        var id: String?
+        var classes: [String]
+        var attributes: [AttributeSelector]
+    }
+
+    private static func matchSelector(_ selector: String, node: Node, ancestors: [Node]) -> SelectorSpecificity? {
+        let parts = splitSelector(selector)
+        guard !parts.isEmpty else { return nil }
+
+        var compounds: [CompoundSelector] = []
+        for part in parts {
+            guard let compound = parseCompoundSelector(part) else { return nil }
+            compounds.append(compound)
+        }
+
+        guard matches(compounds.last, node: node) else { return nil }
+
+        if compounds.count > 1 {
+            var ancestorIndex = ancestors.count - 1
+            for compound in compounds.dropLast().reversed() {
+                var found = false
+                while ancestorIndex >= 0 {
+                    if matches(compound, node: ancestors[ancestorIndex]) {
+                        found = true
+                        ancestorIndex -= 1
+                        break
+                    }
+                    ancestorIndex -= 1
+                }
+                if !found {
+                    return nil
+                }
+            }
+        }
+
+        if compounds.contains(where: { $0.id != nil }) {
+            return .id
+        }
+        if compounds.contains(where: { !$0.classes.isEmpty || !$0.attributes.isEmpty }) {
+            return .class
+        }
+        if compounds.contains(where: { $0.tagName != nil }) {
+            return .element
+        }
+
+        return nil
+    }
+
+    private static func splitSelector(_ selector: String) -> [String] {
+        var parts: [String] = []
+        var current = ""
+        var bracketDepth = 0
+
+        for char in selector {
+            if char == "[" {
+                bracketDepth += 1
+            } else if char == "]", bracketDepth > 0 {
+                bracketDepth -= 1
+            }
+
+            if char.isWhitespace && bracketDepth == 0 {
+                if !current.isEmpty {
+                    parts.append(current)
+                    current = ""
+                }
+                continue
+            }
+
+            current.append(char)
+        }
+
+        if !current.isEmpty {
+            parts.append(current)
+        }
+
+        return parts
+    }
+
+    private static func parseCompoundSelector(_ selector: String) -> CompoundSelector? {
+        if selector.isEmpty {
             return nil
         }
 
         var tagName: String?
         var id: String?
         var classes: [String] = []
+        var attributes: [AttributeSelector] = []
 
         var remaining = selector[...]
 
-        if let first = remaining.first, first != "." && first != "#" {
-            let name = remaining.prefix { $0 != "." && $0 != "#" }
+        if let first = remaining.first, first != "." && first != "#" && first != "[" {
+            let name = remaining.prefix { $0 != "." && $0 != "#" && $0 != "[" }
             tagName = String(name)
             remaining = remaining.dropFirst(name.count)
         }
@@ -211,46 +297,62 @@ struct PresentationParser {
         while let first = remaining.first {
             if first == "#" {
                 remaining = remaining.dropFirst()
-                let name = remaining.prefix { $0 != "." && $0 != "#" }
+                let name = remaining.prefix { $0 != "." && $0 != "#" && $0 != "[" }
                 id = String(name)
                 remaining = remaining.dropFirst(name.count)
             } else if first == "." {
                 remaining = remaining.dropFirst()
-                let name = remaining.prefix { $0 != "." && $0 != "#" }
+                let name = remaining.prefix { $0 != "." && $0 != "#" && $0 != "[" }
                 classes.append(String(name))
                 remaining = remaining.dropFirst(name.count)
+            } else if first == "[" {
+                remaining = remaining.dropFirst()
+                let content = remaining.prefix { $0 != "]" }
+                guard remaining.dropFirst(content.count).first == "]" else { return nil }
+                remaining = remaining.dropFirst(content.count + 1)
+
+                let parts = content.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+                guard let name = parts.first, !name.isEmpty else { return nil }
+                var value: String?
+                if parts.count == 2 {
+                    value = String(parts[1]).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                }
+                attributes.append(AttributeSelector(name: String(name), value: value))
             } else {
                 return nil
             }
         }
 
-        if let tagName = tagName, tagName != "*" && tagName != node.name {
-            return nil
+        return CompoundSelector(tagName: tagName, id: id, classes: classes, attributes: attributes)
+    }
+
+    private static func matches(_ compound: CompoundSelector?, node: Node) -> Bool {
+        guard let compound else { return false }
+
+        if let tagName = compound.tagName, tagName != "*" && tagName != node.name {
+            return false
         }
 
-        if let id = id, id != node[attribute: "id"] {
-            return nil
+        if let id = compound.id, id != node[attribute: "id"] {
+            return false
         }
 
-        if !classes.isEmpty {
+        if !compound.classes.isEmpty {
             let classList = (node[attribute: "class"] ?? "")
-                .split(separator: " ")
+                .split(whereSeparator: { $0.isWhitespace })
                 .map { String($0) }
-            for className in classes where !classList.contains(className) {
-                return nil
+            for className in compound.classes where !classList.contains(className) {
+                return false
             }
         }
 
-        if id != nil {
-            return .id
-        }
-        if !classes.isEmpty {
-            return .class
-        }
-        if tagName != nil {
-            return .element
+        for attribute in compound.attributes {
+            guard let value = node[attribute: attribute.name] else { return false }
+            if let expected = attribute.value, value != expected {
+                return false
+            }
         }
 
-        return nil
+        return true
     }
 }

@@ -124,5 +124,5 @@ Sources/Pelagos/
 ---
 
 ## Notes
-- `href` references are preserved on elements/gradients; resolution is left to callers.
-- CSS selector support is limited to element/class/id selectors (no descendant/attribute selectors).
+- `href` references are preserved; gradients/patterns inherit from referenced definitions when attributes are missing.
+- CSS selector support includes element/class/id, simple descendant chains, and basic attribute selectors (no combinators beyond whitespace).
