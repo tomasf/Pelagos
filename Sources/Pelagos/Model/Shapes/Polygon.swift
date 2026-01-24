@@ -1,13 +1,13 @@
 import Foundation
 
 /// An SVG polygon element
-public struct Polygon: GraphicElement, Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct Polygon: GraphicElement, Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var points: [Point]
+    var points: [Point]
 
-    public init(
+    init(
         id: String? = nil,
         points: [Point] = [],
         presentation: PresentationAttributes = PresentationAttributes()

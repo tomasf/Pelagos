@@ -274,18 +274,18 @@ public struct ResolvedImageContent: Sendable {
 // MARK: - Bounding Box
 
 /// A simple rectangle for bounding boxes
-public struct BoundingBox: Hashable, Sendable {
-    public var x: Double
-    public var y: Double
-    public var width: Double
-    public var height: Double
+struct BoundingBox: Hashable, Sendable {
+    var x: Double
+    var y: Double
+    var width: Double
+    var height: Double
 
-    public var minX: Double { x }
-    public var minY: Double { y }
-    public var maxX: Double { x + width }
-    public var maxY: Double { y + height }
+    var minX: Double { x }
+    var minY: Double { y }
+    var maxX: Double { x + width }
+    var maxY: Double { y + height }
 
-    public init(x: Double, y: Double, width: Double, height: Double) {
+    init(x: Double, y: Double, width: Double, height: Double) {
         self.x = x
         self.y = y
         self.width = width

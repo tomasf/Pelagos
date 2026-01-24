@@ -1,21 +1,21 @@
 import Foundation
 
 /// An SVG text element
-public struct Text: GraphicElement, Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct Text: GraphicElement, Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var x: [Length]?
-    public var y: [Length]?
-    public var dx: [Length]?
-    public var dy: [Length]?
-    public var rotate: [Double]?
-    public var textLength: Length?
-    public var lengthAdjust: LengthAdjust?
+    var x: [Length]?
+    var y: [Length]?
+    var dx: [Length]?
+    var dy: [Length]?
+    var rotate: [Double]?
+    var textLength: Length?
+    var lengthAdjust: LengthAdjust?
 
-    public var content: [TextContent]
+    var content: [TextContent]
 
-    public init(
+    init(
         id: String? = nil,
         x: [Length]? = nil,
         y: [Length]? = nil,
@@ -41,28 +41,28 @@ public struct Text: GraphicElement, Hashable, Sendable {
 }
 
 /// Content within a text element
-public enum TextContent: Hashable, Sendable {
+enum TextContent: Hashable, Sendable {
     case text(String)
     case span(TSpan)
     case reference(TextPath)
 }
 
 /// An SVG tspan element
-public struct TSpan: Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct TSpan: Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var x: [Length]?
-    public var y: [Length]?
-    public var dx: [Length]?
-    public var dy: [Length]?
-    public var rotate: [Double]?
-    public var textLength: Length?
-    public var lengthAdjust: LengthAdjust?
+    var x: [Length]?
+    var y: [Length]?
+    var dx: [Length]?
+    var dy: [Length]?
+    var rotate: [Double]?
+    var textLength: Length?
+    var lengthAdjust: LengthAdjust?
 
-    public var content: [TextContent]
+    var content: [TextContent]
 
-    public init(
+    init(
         id: String? = nil,
         x: [Length]? = nil,
         y: [Length]? = nil,
@@ -88,18 +88,18 @@ public struct TSpan: Hashable, Sendable {
 }
 
 /// An SVG textPath element
-public struct TextPath: Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct TextPath: Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var href: String?
-    public var startOffset: Length?
-    public var method: TextPathMethod?
-    public var spacing: TextPathSpacing?
+    var href: String?
+    var startOffset: Length?
+    var method: TextPathMethod?
+    var spacing: TextPathSpacing?
 
-    public var content: String
+    var content: String
 
-    public init(
+    init(
         id: String? = nil,
         href: String? = nil,
         startOffset: Length? = nil,
@@ -118,17 +118,17 @@ public struct TextPath: Hashable, Sendable {
     }
 }
 
-public enum LengthAdjust: String, Hashable, Sendable {
+enum LengthAdjust: String, Hashable, Sendable {
     case spacing
     case spacingAndGlyphs
 }
 
-public enum TextPathMethod: String, Hashable, Sendable {
+enum TextPathMethod: String, Hashable, Sendable {
     case align
     case stretch
 }
 
-public enum TextPathSpacing: String, Hashable, Sendable {
+enum TextPathSpacing: String, Hashable, Sendable {
     case auto
     case exact
 }

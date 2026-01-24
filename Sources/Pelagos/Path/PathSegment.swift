@@ -1,7 +1,7 @@
 import Foundation
 
 /// A segment in an SVG path
-public enum PathSegment: Hashable, Sendable {
+enum PathSegment: Hashable, Sendable {
     // Move commands
     case moveTo(Point)
     case moveToRelative(Point)

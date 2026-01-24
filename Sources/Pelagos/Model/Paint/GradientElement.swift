@@ -1,7 +1,7 @@
 import Foundation
 
 /// Protocol for gradient elements
-public protocol GradientElement: SVGElement, Sendable {
+protocol GradientElement: SVGElement, Sendable {
     var stops: [GradientStop] { get }
     var gradientUnits: GradientUnits? { get }
     var gradientTransform: [Transform]? { get }

@@ -1,13 +1,13 @@
 import Foundation
 
 /// An SVG path element
-public struct Path: GraphicElement, Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct Path: GraphicElement, Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var segments: [PathSegment]
+    var segments: [PathSegment]
 
-    public init(
+    init(
         id: String? = nil,
         segments: [PathSegment] = [],
         presentation: PresentationAttributes = PresentationAttributes()

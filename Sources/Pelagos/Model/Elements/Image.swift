@@ -1,18 +1,18 @@
 import Foundation
 
 /// An SVG image element
-public struct Image: GraphicElement, Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct Image: GraphicElement, Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var href: String?
-    public var x: Length?
-    public var y: Length?
-    public var width: Length?
-    public var height: Length?
-    public var preserveAspectRatio: PreserveAspectRatio?
+    var href: String?
+    var x: Length?
+    var y: Length?
+    var width: Length?
+    var height: Length?
+    var preserveAspectRatio: PreserveAspectRatio?
 
-    public init(
+    init(
         id: String? = nil,
         href: String? = nil,
         x: Length? = nil,

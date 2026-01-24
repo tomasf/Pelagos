@@ -1,56 +1,56 @@
 import Foundation
 
 /// SVG presentation attributes that can be applied to graphic elements
-public struct PresentationAttributes: Hashable, Sendable {
+struct PresentationAttributes: Hashable, Sendable {
     // Fill properties
-    public var fill: Fill?
-    public var fillOpacity: Double?
-    public var fillRule: FillRule?
+    var fill: Fill?
+    var fillOpacity: Double?
+    var fillRule: FillRule?
 
     // Stroke properties
-    public var stroke: Fill?
-    public var strokeOpacity: Double?
-    public var strokeWidth: Length?
-    public var strokeLineCap: LineCap?
-    public var strokeLineJoin: LineJoin?
-    public var strokeMiterLimit: Double?
-    public var strokeDashArray: [Length]?
-    public var strokeDashOffset: Length?
+    var stroke: Fill?
+    var strokeOpacity: Double?
+    var strokeWidth: Length?
+    var strokeLineCap: LineCap?
+    var strokeLineJoin: LineJoin?
+    var strokeMiterLimit: Double?
+    var strokeDashArray: [Length]?
+    var strokeDashOffset: Length?
 
     // Opacity and display
-    public var opacity: Double?
-    public var display: DisplayMode?
-    public var visibility: Visibility?
+    var opacity: Double?
+    var display: DisplayMode?
+    var visibility: Visibility?
 
     // Color (used by currentColor)
-    public var color: Color?
+    var color: Color?
 
     // Transform
-    public var transform: [Transform]?
+    var transform: [Transform]?
 
     // References
-    public var clipPath: String?  // URL reference
-    public var mask: String?      // URL reference
-    public var filter: String?    // URL reference
+    var clipPath: String?  // URL reference
+    var mask: String?      // URL reference
+    var filter: String?    // URL reference
 
     // Font properties
-    public var fontFamily: String?
-    public var fontSize: Length?
-    public var fontStyle: FontStyle?
-    public var fontWeight: FontWeight?
+    var fontFamily: String?
+    var fontSize: Length?
+    var fontStyle: FontStyle?
+    var fontWeight: FontWeight?
 
     // Text properties
-    public var textAnchor: TextAnchor?
-    public var textDecoration: String?
+    var textAnchor: TextAnchor?
+    var textDecoration: String?
 
     // CSS class
-    public var cssClass: String?
+    var cssClass: String?
 
-    public init() {}
+    init() {}
 
     /// Merges another set of attributes on top of this one.
     /// Non-nil values in `other` override values in `self`.
-    public func merged(with other: PresentationAttributes) -> PresentationAttributes {
+    func merged(with other: PresentationAttributes) -> PresentationAttributes {
         var result = self
 
         if let v = other.fill { result.fill = v }

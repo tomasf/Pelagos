@@ -1,24 +1,24 @@
 import Foundation
 
 /// An SVG pattern element
-public struct Pattern: ContainerElement, Hashable, Sendable {
-    public var id: String?
+struct Pattern: ContainerElement, Hashable, Sendable {
+    var id: String?
 
-    public var x: Length?
-    public var y: Length?
-    public var width: Length?
-    public var height: Length?
+    var x: Length?
+    var y: Length?
+    var width: Length?
+    var height: Length?
 
-    public var patternUnits: GradientUnits?  // Uses same enum as gradients
-    public var patternContentUnits: GradientUnits?
-    public var patternTransform: [Transform]?
-    public var viewBox: ViewBox?
-    public var preserveAspectRatio: PreserveAspectRatio?
-    public var href: String?
+    var patternUnits: GradientUnits?  // Uses same enum as gradients
+    var patternContentUnits: GradientUnits?
+    var patternTransform: [Transform]?
+    var viewBox: ViewBox?
+    var preserveAspectRatio: PreserveAspectRatio?
+    var href: String?
 
-    public var children: [any GraphicElement]
+    var children: [any GraphicElement]
 
-    public init(
+    init(
         id: String? = nil,
         x: Length? = nil,
         y: Length? = nil,
@@ -46,7 +46,7 @@ public struct Pattern: ContainerElement, Hashable, Sendable {
         self.children = children
     }
 
-    public static func == (lhs: Pattern, rhs: Pattern) -> Bool {
+    static func == (lhs: Pattern, rhs: Pattern) -> Bool {
         lhs.id == rhs.id &&
         lhs.x == rhs.x &&
         lhs.y == rhs.y &&
@@ -60,7 +60,7 @@ public struct Pattern: ContainerElement, Hashable, Sendable {
         lhs.href == rhs.href
     }
 
-    public func hash(into hasher: inout Hasher) {
+    func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(x)
         hasher.combine(y)

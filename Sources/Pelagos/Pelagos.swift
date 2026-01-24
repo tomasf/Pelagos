@@ -20,10 +20,10 @@ import Foundation
 /// - Presentation attributes (fill, stroke, opacity, transform, etc.)
 /// - URL references to definitions (gradients, clip paths, masks)
 /// - Length values with units preserved (px, em, %, etc.)
-public enum Pelagos {
+enum Pelagos {
     /// The library version
-    public static let version = "0.1.0"
+    static let version = "0.1.0"
 }
 
 // Re-export main types for convenience
-public typealias SVGDocument = SVG
+typealias SVGDocument = SVG

@@ -2,18 +2,18 @@ import Foundation
 
 /// The root SVG element
 public struct SVG: ContainerElement, GraphicElement, Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+    var id: String?
+    var presentation: PresentationAttributes
 
     public var width: Length?
     public var height: Length?
     public var viewBox: ViewBox?
     public var preserveAspectRatio: PreserveAspectRatio?
 
-    public var children: [any GraphicElement]
-    public var definitions: Definitions
+    var children: [any GraphicElement]
+    var definitions: Definitions
 
-    public init(
+    init(
         id: String? = nil,
         width: Length? = nil,
         height: Length? = nil,

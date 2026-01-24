@@ -1,23 +1,23 @@
 import Foundation
 
 /// An SVG radialGradient element
-public struct RadialGradient: GradientElement, Hashable, Sendable {
-    public var id: String?
+struct RadialGradient: GradientElement, Hashable, Sendable {
+    var id: String?
 
-    public var cx: Length?
-    public var cy: Length?
-    public var r: Length?
-    public var fx: Length?
-    public var fy: Length?
-    public var fr: Length?
+    var cx: Length?
+    var cy: Length?
+    var r: Length?
+    var fx: Length?
+    var fy: Length?
+    var fr: Length?
 
-    public var stops: [GradientStop]
-    public var gradientUnits: GradientUnits?
-    public var gradientTransform: [Transform]?
-    public var spreadMethod: SpreadMethod?
-    public var href: String?
+    var stops: [GradientStop]
+    var gradientUnits: GradientUnits?
+    var gradientTransform: [Transform]?
+    var spreadMethod: SpreadMethod?
+    var href: String?
 
-    public init(
+    init(
         id: String? = nil,
         cx: Length? = nil,
         cy: Length? = nil,

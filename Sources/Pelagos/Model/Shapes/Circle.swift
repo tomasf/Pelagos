@@ -1,15 +1,15 @@
 import Foundation
 
 /// An SVG circle element
-public struct Circle: GraphicElement, Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct Circle: GraphicElement, Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var cx: Length
-    public var cy: Length
-    public var r: Length
+    var cx: Length
+    var cy: Length
+    var r: Length
 
-    public init(
+    init(
         id: String? = nil,
         cx: Length = .zero,
         cy: Length = .zero,

@@ -1,7 +1,7 @@
 import Foundation
 
 /// An SVG color value
-public enum Color: Hashable, Sendable {
+enum Color: Hashable, Sendable {
     case none
     case currentColor
     case rgb(red: UInt8, green: UInt8, blue: UInt8)
@@ -9,14 +9,14 @@ public enum Color: Hashable, Sendable {
     case p3(red: Double, green: Double, blue: Double, alpha: Double)
     case named(String)
 
-    public static let black = Color.rgb(red: 0, green: 0, blue: 0)
-    public static let white = Color.rgb(red: 255, green: 255, blue: 255)
-    public static let transparent = Color.rgba(red: 0, green: 0, blue: 0, alpha: 0)
+    static let black = Color.rgb(red: 0, green: 0, blue: 0)
+    static let white = Color.rgb(red: 255, green: 255, blue: 255)
+    static let transparent = Color.rgba(red: 0, green: 0, blue: 0, alpha: 0)
 }
 
 extension Color {
     /// Standard SVG/CSS named colors
-    public static let namedColors: [String: Color] = [
+    static let namedColors: [String: Color] = [
         "aliceblue": .rgb(red: 240, green: 248, blue: 255),
         "antiquewhite": .rgb(red: 250, green: 235, blue: 215),
         "aqua": .rgb(red: 0, green: 255, blue: 255),

@@ -1,16 +1,16 @@
 import Foundation
 
 /// An SVG ellipse element
-public struct Ellipse: GraphicElement, Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct Ellipse: GraphicElement, Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var cx: Length
-    public var cy: Length
-    public var rx: Length
-    public var ry: Length
+    var cx: Length
+    var cy: Length
+    var rx: Length
+    var ry: Length
 
-    public init(
+    init(
         id: String? = nil,
         cx: Length = .zero,
         cy: Length = .zero,

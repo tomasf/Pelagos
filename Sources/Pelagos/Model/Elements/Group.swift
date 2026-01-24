@@ -1,13 +1,13 @@
 import Foundation
 
 /// An SVG group element (g)
-public struct Group: ContainerElement, GraphicElement, Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct Group: ContainerElement, GraphicElement, Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var children: [any GraphicElement]
+    var children: [any GraphicElement]
 
-    public init(
+    init(
         id: String? = nil,
         children: [any GraphicElement] = [],
         presentation: PresentationAttributes = PresentationAttributes()
@@ -17,11 +17,11 @@ public struct Group: ContainerElement, GraphicElement, Hashable, Sendable {
         self.presentation = presentation
     }
 
-    public static func == (lhs: Group, rhs: Group) -> Bool {
+    static func == (lhs: Group, rhs: Group) -> Bool {
         lhs.id == rhs.id && lhs.presentation == rhs.presentation
     }
 
-    public func hash(into hasher: inout Hasher) {
+    func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(presentation)
     }

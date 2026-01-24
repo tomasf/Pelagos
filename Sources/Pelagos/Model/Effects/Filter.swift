@@ -1,20 +1,20 @@
 import Foundation
 
 /// An SVG filter element (stores raw filter primitives for now)
-public struct Filter: SVGElement, Hashable, Sendable {
-    public var id: String?
+struct Filter: SVGElement, Hashable, Sendable {
+    var id: String?
 
-    public var x: Length?
-    public var y: Length?
-    public var width: Length?
-    public var height: Length?
-    public var filterUnits: GradientUnits?
-    public var primitiveUnits: GradientUnits?
+    var x: Length?
+    var y: Length?
+    var width: Length?
+    var height: Length?
+    var filterUnits: GradientUnits?
+    var primitiveUnits: GradientUnits?
 
     /// Raw filter primitive elements (feGaussianBlur, feColorMatrix, etc.)
-    public var primitives: [FilterPrimitive]
+    var primitives: [FilterPrimitive]
 
-    public init(
+    init(
         id: String? = nil,
         x: Length? = nil,
         y: Length? = nil,
@@ -36,7 +36,7 @@ public struct Filter: SVGElement, Hashable, Sendable {
 }
 
 /// A filter primitive element
-public enum FilterPrimitive: Hashable, Sendable {
+enum FilterPrimitive: Hashable, Sendable {
     case gaussianBlur(input: String?, stdDeviation: Double, result: String?)
     case colorMatrix(input: String?, type: ColorMatrixType, values: [Double]?, result: String?)
     case offset(input: String?, dx: Double?, dy: Double?, result: String?)
@@ -49,14 +49,14 @@ public enum FilterPrimitive: Hashable, Sendable {
     case unknown(name: String, attributes: [String: String])
 }
 
-public enum ColorMatrixType: String, Hashable, Sendable {
+enum ColorMatrixType: String, Hashable, Sendable {
     case matrix
     case saturate
     case hueRotate
     case luminanceToAlpha
 }
 
-public enum BlendMode: String, Hashable, Sendable {
+enum BlendMode: String, Hashable, Sendable {
     case normal
     case multiply
     case screen
@@ -75,7 +75,7 @@ public enum BlendMode: String, Hashable, Sendable {
     case luminosity
 }
 
-public enum CompositeOperator: String, Hashable, Sendable {
+enum CompositeOperator: String, Hashable, Sendable {
     case over
     case `in`
     case out
@@ -85,12 +85,12 @@ public enum CompositeOperator: String, Hashable, Sendable {
     case arithmetic
 }
 
-public enum MorphologyOperator: String, Hashable, Sendable {
+enum MorphologyOperator: String, Hashable, Sendable {
     case erode
     case dilate
 }
 
-public enum TurbulenceType: String, Hashable, Sendable {
+enum TurbulenceType: String, Hashable, Sendable {
     case fractalNoise
     case turbulence
 }

@@ -1,13 +1,13 @@
 import Foundation
 
 /// An SVG polyline element
-public struct Polyline: GraphicElement, Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct Polyline: GraphicElement, Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var points: [Point]
+    var points: [Point]
 
-    public init(
+    init(
         id: String? = nil,
         points: [Point] = [],
         presentation: PresentationAttributes = PresentationAttributes()

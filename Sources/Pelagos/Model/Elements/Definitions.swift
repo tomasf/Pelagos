@@ -1,17 +1,17 @@
 import Foundation
 
 /// Container for reusable definitions (gradients, patterns, clipPaths, etc.)
-public struct Definitions: Hashable, Sendable {
-    public var defs: [Defs]
-    public var gradients: [String: any GradientElement]
-    public var patterns: [String: Pattern]
-    public var clipPaths: [String: ClipPath]
-    public var masks: [String: Mask]
-    public var filters: [String: Filter]
-    public var symbols: [String: Symbol]
-    public var elements: [String: any GraphicElement]
+struct Definitions: Hashable, Sendable {
+    var defs: [Defs]
+    var gradients: [String: any GradientElement]
+    var patterns: [String: Pattern]
+    var clipPaths: [String: ClipPath]
+    var masks: [String: Mask]
+    var filters: [String: Filter]
+    var symbols: [String: Symbol]
+    var elements: [String: any GraphicElement]
 
-    public init() {
+    init() {
         self.defs = []
         self.gradients = [:]
         self.patterns = [:]
@@ -22,7 +22,7 @@ public struct Definitions: Hashable, Sendable {
         self.elements = [:]
     }
 
-    public static func == (lhs: Definitions, rhs: Definitions) -> Bool {
+    static func == (lhs: Definitions, rhs: Definitions) -> Bool {
         // Simple equality based on keys
         lhs.defs.compactMap { $0.id }.sorted() == rhs.defs.compactMap { $0.id }.sorted() &&
         lhs.gradients.keys.sorted() == rhs.gradients.keys.sorted() &&
@@ -34,7 +34,7 @@ public struct Definitions: Hashable, Sendable {
         lhs.elements.keys.sorted() == rhs.elements.keys.sorted()
     }
 
-    public func hash(into hasher: inout Hasher) {
+    func hash(into hasher: inout Hasher) {
         hasher.combine(defs.compactMap { $0.id }.sorted())
         hasher.combine(gradients.keys.sorted())
         hasher.combine(patterns)

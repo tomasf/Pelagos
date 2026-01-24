@@ -1,19 +1,19 @@
 import Foundation
 
 /// An SVG mask element
-public struct Mask: ContainerElement, Hashable, Sendable {
-    public var id: String?
+struct Mask: ContainerElement, Hashable, Sendable {
+    var id: String?
 
-    public var x: Length?
-    public var y: Length?
-    public var width: Length?
-    public var height: Length?
-    public var maskUnits: GradientUnits?
-    public var maskContentUnits: GradientUnits?
+    var x: Length?
+    var y: Length?
+    var width: Length?
+    var height: Length?
+    var maskUnits: GradientUnits?
+    var maskContentUnits: GradientUnits?
 
-    public var children: [any GraphicElement]
+    var children: [any GraphicElement]
 
-    public init(
+    init(
         id: String? = nil,
         x: Length? = nil,
         y: Length? = nil,
@@ -33,7 +33,7 @@ public struct Mask: ContainerElement, Hashable, Sendable {
         self.children = children
     }
 
-    public static func == (lhs: Mask, rhs: Mask) -> Bool {
+    static func == (lhs: Mask, rhs: Mask) -> Bool {
         lhs.id == rhs.id &&
         lhs.x == rhs.x &&
         lhs.y == rhs.y &&
@@ -43,7 +43,7 @@ public struct Mask: ContainerElement, Hashable, Sendable {
         lhs.maskContentUnits == rhs.maskContentUnits
     }
 
-    public func hash(into hasher: inout Hasher) {
+    func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(x)
         hasher.combine(y)

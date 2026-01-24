@@ -1,13 +1,13 @@
 import Foundation
 
 /// An SVG clipPath element
-public struct ClipPath: ContainerElement, Hashable, Sendable {
-    public var id: String?
+struct ClipPath: ContainerElement, Hashable, Sendable {
+    var id: String?
 
-    public var clipPathUnits: GradientUnits?  // Uses same enum
-    public var children: [any GraphicElement]
+    var clipPathUnits: GradientUnits?  // Uses same enum
+    var children: [any GraphicElement]
 
-    public init(
+    init(
         id: String? = nil,
         clipPathUnits: GradientUnits? = nil,
         children: [any GraphicElement] = []
@@ -17,11 +17,11 @@ public struct ClipPath: ContainerElement, Hashable, Sendable {
         self.children = children
     }
 
-    public static func == (lhs: ClipPath, rhs: ClipPath) -> Bool {
+    static func == (lhs: ClipPath, rhs: ClipPath) -> Bool {
         lhs.id == rhs.id && lhs.clipPathUnits == rhs.clipPathUnits
     }
 
-    public func hash(into hasher: inout Hasher) {
+    func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(clipPathUnits)
     }

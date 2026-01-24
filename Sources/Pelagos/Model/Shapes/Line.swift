@@ -1,16 +1,16 @@
 import Foundation
 
 /// An SVG line element
-public struct Line: GraphicElement, Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct Line: GraphicElement, Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var x1: Length
-    public var y1: Length
-    public var x2: Length
-    public var y2: Length
+    var x1: Length
+    var y1: Length
+    var x2: Length
+    var y2: Length
 
-    public init(
+    init(
         id: String? = nil,
         x1: Length = .zero,
         y1: Length = .zero,

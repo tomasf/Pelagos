@@ -1,14 +1,14 @@
 import Foundation
 
 /// An SVG symbol element (reusable graphic)
-public struct Symbol: ContainerElement, Hashable, Sendable {
-    public var id: String?
+struct Symbol: ContainerElement, Hashable, Sendable {
+    var id: String?
 
-    public var viewBox: ViewBox?
-    public var preserveAspectRatio: PreserveAspectRatio?
-    public var children: [any GraphicElement]
+    var viewBox: ViewBox?
+    var preserveAspectRatio: PreserveAspectRatio?
+    var children: [any GraphicElement]
 
-    public init(
+    init(
         id: String? = nil,
         viewBox: ViewBox? = nil,
         preserveAspectRatio: PreserveAspectRatio? = nil,
@@ -20,13 +20,13 @@ public struct Symbol: ContainerElement, Hashable, Sendable {
         self.children = children
     }
 
-    public static func == (lhs: Symbol, rhs: Symbol) -> Bool {
+    static func == (lhs: Symbol, rhs: Symbol) -> Bool {
         lhs.id == rhs.id &&
         lhs.viewBox == rhs.viewBox &&
         lhs.preserveAspectRatio == rhs.preserveAspectRatio
     }
 
-    public func hash(into hasher: inout Hasher) {
+    func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(viewBox)
         hasher.combine(preserveAspectRatio)

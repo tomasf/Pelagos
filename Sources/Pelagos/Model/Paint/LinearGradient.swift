@@ -1,21 +1,21 @@
 import Foundation
 
 /// An SVG linearGradient element
-public struct LinearGradient: GradientElement, Hashable, Sendable {
-    public var id: String?
+struct LinearGradient: GradientElement, Hashable, Sendable {
+    var id: String?
 
-    public var x1: Length?
-    public var y1: Length?
-    public var x2: Length?
-    public var y2: Length?
+    var x1: Length?
+    var y1: Length?
+    var x2: Length?
+    var y2: Length?
 
-    public var stops: [GradientStop]
-    public var gradientUnits: GradientUnits?
-    public var gradientTransform: [Transform]?
-    public var spreadMethod: SpreadMethod?
-    public var href: String?
+    var stops: [GradientStop]
+    var gradientUnits: GradientUnits?
+    var gradientTransform: [Transform]?
+    var spreadMethod: SpreadMethod?
+    var href: String?
 
-    public init(
+    init(
         id: String? = nil,
         x1: Length? = nil,
         y1: Length? = nil,

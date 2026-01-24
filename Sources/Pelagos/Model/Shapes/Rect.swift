@@ -1,18 +1,18 @@
 import Foundation
 
 /// An SVG rect element
-public struct Rect: GraphicElement, Hashable, Sendable {
-    public var id: String?
-    public var presentation: PresentationAttributes
+struct Rect: GraphicElement, Hashable, Sendable {
+    var id: String?
+    var presentation: PresentationAttributes
 
-    public var x: Length
-    public var y: Length
-    public var width: Length
-    public var height: Length
-    public var rx: Length?
-    public var ry: Length?
+    var x: Length
+    var y: Length
+    var width: Length
+    var height: Length
+    var rx: Length?
+    var ry: Length?
 
-    public init(
+    init(
         id: String? = nil,
         x: Length = .zero,
         y: Length = .zero,

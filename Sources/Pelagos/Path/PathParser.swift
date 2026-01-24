@@ -1,10 +1,10 @@
 import Foundation
 
 /// Parser for SVG path data (the `d` attribute)
-public struct PathParser {
-    public init() {}
+struct PathParser {
+    init() {}
 
-    public func parse(_ data: String) throws -> [PathSegment] {
+    func parse(_ data: String) throws -> [PathSegment] {
         var scanner = PathScanner(data)
         var segments: [PathSegment] = []
 
@@ -168,7 +168,7 @@ public struct PathParser {
     }
 }
 
-public enum PathParseError: Error, Equatable {
+enum PathParseError: Error, Equatable {
     case missingArguments
     case unknownCommand(Character)
     case invalidNumber

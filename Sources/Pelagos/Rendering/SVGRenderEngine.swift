@@ -2,7 +2,7 @@ import Foundation
 import Darwin
 
 /// Rendering context that tracks inherited state during tree traversal
-public struct RenderContext: Sendable {
+struct RenderContext: Sendable {
     var presentation: PresentationAttributes
     var transforms: [Transform]
     var viewBox: ViewBox?
