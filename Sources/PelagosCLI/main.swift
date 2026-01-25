@@ -39,23 +39,7 @@ do {
             fatalError("Failed to create bitmap context.")
         }
 
-        context.setFillColor(CGColor(gray: 1, alpha: 1))
-        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-
-        context.translateBy(x: 0, y: height)
-        context.scaleBy(x: 1, y: -1)
-
-        if let viewBox {
-            applyViewBoxTransform(
-                context: context,
-                viewBox: viewBox,
-                outputWidth: width,
-                outputHeight: height,
-                preserveAspectRatio: svg.preserveAspectRatio
-            )
-        }
-
-        svg.render(to: context)
+        renderSVG(svg, in: context, size: size, fillBackground: true)
 
         guard let image = context.makeImage() else {
             fatalError("Failed to create CGImage.")
@@ -72,6 +56,18 @@ do {
         }
 
         print("Wrote PNG to \(outputFile.path)")
+
+        var mediaBox = CGRect(x: 0, y: 0, width: width, height: height)
+        let pdfFile = outputURL.appendingPathComponent(fileURL.deletingPathExtension().lastPathComponent + ".pdf")
+        guard let pdfContext = CGContext(pdfFile as CFURL, mediaBox: &mediaBox, nil) else {
+            fatalError("Failed to create PDF context.")
+        }
+        pdfContext.beginPDFPage(nil as CFDictionary?)
+        renderSVG(svg, in: pdfContext, size: size, fillBackground: false)
+        pdfContext.endPDFPage()
+        pdfContext.closePDF()
+
+        print("Wrote PDF to \(pdfFile.path)")
     }
 } catch {
     fputs("Error: \(error)\n", stderr)
@@ -86,9 +82,31 @@ fputs("PelagosCLI requires CoreGraphics and ImageIO.\n", stderr)
 exit(1)
 #endif
 
-private func resolvedLength(_ length: Length?, fallback: Double) -> Double {
-    guard let length else { return fallback }
-    return length.resolvedValue(viewport: fallback)
+private func renderSVG(
+    _ svg: SVG,
+    in context: CGContext,
+    size: (width: Double, height: Double),
+    fillBackground: Bool
+) {
+    if fillBackground {
+        context.setFillColor(CGColor(gray: 1, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: size.width, height: size.height))
+    }
+
+    context.translateBy(x: 0, y: size.height)
+    context.scaleBy(x: 1, y: -1)
+
+    if let viewBox = svg.viewBox {
+        applyViewBoxTransform(
+            context: context,
+            viewBox: viewBox,
+            outputWidth: size.width,
+            outputHeight: size.height,
+            preserveAspectRatio: svg.preserveAspectRatio
+        )
+    }
+
+    svg.render(to: context)
 }
 
 private func applyViewBoxTransform(
