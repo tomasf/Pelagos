@@ -58,8 +58,11 @@ public protocol SVGRenderer<Path, NativeColor> {
     /// Fill a path with a solid color
     func fill(_ path: Path, color: NativeColor, rule: FillRule)
 
-    /// Stroke a path
+    /// Stroke a path with a solid color
     func stroke(_ path: Path, color: NativeColor, style: StrokeStyle)
+
+    /// Stroke a path with a gradient
+    func strokeGradient(_ path: Path, gradient: ResolvedGradient, style: StrokeStyle)
 
     /// Fill a path with a gradient
     func fillGradient(_ path: Path, gradient: ResolvedGradient, rule: FillRule)

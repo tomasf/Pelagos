@@ -107,6 +107,41 @@ public final class CGRenderer: SVGRenderer {
         context.strokePath()
     }
 
+    public func strokeGradient(_ path: CGMutablePath, gradient: ResolvedGradient, style: StrokeStyle) {
+        // Convert the stroke to a filled path
+        let dashLengths = style.dashArray?.map { CGFloat($0) } ?? []
+        let strokedPath = path.copy(
+            strokingWithWidth: CGFloat(style.width),
+            lineCap: style.cap.cgLineCap,
+            lineJoin: style.join.cgLineJoin,
+            miterLimit: CGFloat(style.miterLimit),
+            transform: .identity
+        )
+
+        // Apply dash pattern if present
+        let finalPath: CGPath
+        if !dashLengths.isEmpty {
+            finalPath = strokedPath.copy(dashingWithPhase: CGFloat(style.dashOffset), lengths: dashLengths)
+        } else {
+            finalPath = strokedPath
+        }
+
+        // Fill the stroked path with the gradient
+        context.saveGState()
+        defer { context.restoreGState() }
+
+        context.addPath(finalPath)
+        context.clip()
+
+        let bounds = finalPath.boundingBox
+        switch gradient {
+        case .linear(let linear):
+            drawLinearGradient(linear, bounds: bounds)
+        case .radial(let radial):
+            drawRadialGradient(radial, bounds: bounds)
+        }
+    }
+
     public func fillGradient(_ path: CGMutablePath, gradient: ResolvedGradient, rule: FillRule) {
         context.saveGState()
         defer { context.restoreGState() }

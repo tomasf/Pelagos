@@ -734,7 +734,7 @@ private func strokePath<R: SVGRenderer>(
     with renderer: R,
     context: RenderContext
 ) {
-    guard let strokeColor = resolveStroke(context.presentation) else { return }
+    guard let strokePaint = resolveStroke(context.presentation, definitions: context.definitions) else { return }
 
     let strokeStyle = StrokeStyle(
         width: context.presentation.strokeWidth?.resolvedValue(fontSize: context.fontSize) ?? 1,
@@ -745,8 +745,16 @@ private func strokePath<R: SVGRenderer>(
         dashOffset: context.presentation.strokeDashOffset?.resolvedValue(fontSize: context.fontSize) ?? 0
     )
 
-    let nativeColor = renderer.makeColor(from: strokeColor)
-    renderer.stroke(path, color: nativeColor, style: strokeStyle)
+    switch strokePaint {
+    case .color(let color):
+        let nativeColor = renderer.makeColor(from: color)
+        renderer.stroke(path, color: nativeColor, style: strokeStyle)
+    case .gradient(let gradient):
+        renderer.strokeGradient(path, gradient: gradient, style: strokeStyle)
+    case .pattern:
+        // Pattern strokes not yet supported
+        break
+    }
 }
 
 // MARK: - Text Rendering
@@ -1054,7 +1062,10 @@ private func resolvePattern(_ pattern: Pattern) -> ResolvedPaint2? {
     return .pattern(resolved)
 }
 
-private func resolveStroke(_ presentation: PresentationAttributes) -> ResolvedColor? {
+private func resolveStroke(
+    _ presentation: PresentationAttributes,
+    definitions: Definitions
+) -> ResolvedPaint2? {
     let currentColor = presentation.color
 
     guard let stroke = presentation.stroke else {
@@ -1069,11 +1080,86 @@ private func resolveStroke(_ presentation: PresentationAttributes) -> ResolvedCo
         let opacity = presentation.opacity ?? 1
         let strokeOpacity = presentation.strokeOpacity ?? 1
         resolved.alpha *= opacity * strokeOpacity
-        return resolved
-    case .url, .urlWithFallback:
-        // Gradient/pattern strokes not yet supported
-        return nil
+        return .color(resolved)
+    case .url(let ref):
+        return resolveStrokeReference(ref, definitions: definitions, presentation: presentation)
+    case .urlWithFallback(let ref, let fallback):
+        if let paint = resolveStrokeReference(ref, definitions: definitions, presentation: presentation) {
+            return paint
+        }
+        var resolved = resolveColorToResolved(fallback, currentColor: currentColor)
+        let opacity = presentation.opacity ?? 1
+        let strokeOpacity = presentation.strokeOpacity ?? 1
+        resolved.alpha *= opacity * strokeOpacity
+        return .color(resolved)
     }
+}
+
+private func resolveStrokeReference(
+    _ ref: String,
+    definitions: Definitions,
+    presentation: PresentationAttributes
+) -> ResolvedPaint2? {
+    if let gradient = definitions.gradients[ref] {
+        return resolveGradientForStroke(gradient, presentation: presentation)
+    }
+    // Pattern strokes not yet supported
+    return nil
+}
+
+private func resolveGradientForStroke(
+    _ gradient: any GradientElement,
+    presentation: PresentationAttributes
+) -> ResolvedPaint2? {
+    let opacity = presentation.opacity ?? 1
+    let strokeOpacity = presentation.strokeOpacity ?? 1
+    let alpha = opacity * strokeOpacity
+    let currentColor = presentation.color
+
+    if let linear = gradient as? LinearGradient {
+        let stops = linear.stops.map { stop in
+            var color = resolveColorToResolved(stop.color, currentColor: currentColor)
+            color.alpha *= alpha * (stop.opacity ?? 1)
+            return ResolvedGradientStop(offset: stop.offset, color: color)
+        }
+        let gradientTransform = linear.gradientTransform.flatMap { makeAffineTransformOptional(from: $0) }
+        let resolved = ResolvedLinearGradient(
+            startX: linear.x1?.value ?? 0,
+            startY: linear.y1?.value ?? 0,
+            endX: linear.x2?.value ?? 1,
+            endY: linear.y2?.value ?? 0,
+            stops: stops,
+            spreadMethod: linear.spreadMethod ?? .pad,
+            gradientUnits: linear.gradientUnits ?? .objectBoundingBox,
+            gradientTransform: gradientTransform
+        )
+        return .gradient(.linear(resolved))
+    }
+
+    if let radial = gradient as? RadialGradient {
+        let stops = radial.stops.map { stop in
+            var color = resolveColorToResolved(stop.color, currentColor: currentColor)
+            color.alpha *= alpha * (stop.opacity ?? 1)
+            return ResolvedGradientStop(offset: stop.offset, color: color)
+        }
+        let cx = radial.cx?.value ?? 0.5
+        let cy = radial.cy?.value ?? 0.5
+        let gradientTransform = radial.gradientTransform.flatMap { makeAffineTransformOptional(from: $0) }
+        let resolved = ResolvedRadialGradient(
+            centerX: cx,
+            centerY: cy,
+            radius: radial.r?.value ?? 0.5,
+            focalX: radial.fx?.value ?? cx,
+            focalY: radial.fy?.value ?? cy,
+            stops: stops,
+            spreadMethod: radial.spreadMethod ?? .pad,
+            gradientUnits: radial.gradientUnits ?? .objectBoundingBox,
+            gradientTransform: gradientTransform
+        )
+        return .gradient(.radial(resolved))
+    }
+
+    return nil
 }
 
 private func resolveFillColor(from fill: Fill?, currentColor: Color?) -> ResolvedColor {
