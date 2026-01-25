@@ -8,8 +8,8 @@ struct Filter: SVGElement, Hashable, Sendable {
     var y: Length?
     var width: Length?
     var height: Length?
-    var filterUnits: GradientUnits?
-    var primitiveUnits: GradientUnits?
+    var filterUnits: CoordinateUnits?
+    var primitiveUnits: CoordinateUnits?
 
     /// Raw filter primitive elements (feGaussianBlur, feColorMatrix, etc.)
     var primitives: [FilterPrimitive]
@@ -20,8 +20,8 @@ struct Filter: SVGElement, Hashable, Sendable {
         y: Length? = nil,
         width: Length? = nil,
         height: Length? = nil,
-        filterUnits: GradientUnits? = nil,
-        primitiveUnits: GradientUnits? = nil,
+        filterUnits: CoordinateUnits? = nil,
+        primitiveUnits: CoordinateUnits? = nil,
         primitives: [FilterPrimitive] = []
     ) {
         self.id = id

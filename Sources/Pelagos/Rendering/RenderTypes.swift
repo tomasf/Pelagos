@@ -130,7 +130,7 @@ public struct ResolvedLinearGradient: Hashable, Sendable {
     public var endY: Double
     public var stops: [ResolvedGradientStop]
     public var spreadMethod: SpreadMethod
-    public var gradientUnits: GradientUnits
+    public var gradientUnits: CoordinateUnits
     public var gradientTransform: AffineTransform?
 
     public init(
@@ -140,7 +140,7 @@ public struct ResolvedLinearGradient: Hashable, Sendable {
         endY: Double,
         stops: [ResolvedGradientStop],
         spreadMethod: SpreadMethod = .pad,
-        gradientUnits: GradientUnits = .objectBoundingBox,
+        gradientUnits: CoordinateUnits = .objectBoundingBox,
         gradientTransform: AffineTransform? = nil
     ) {
         self.startX = startX
@@ -163,7 +163,7 @@ public struct ResolvedRadialGradient: Hashable, Sendable {
     public var focalY: Double
     public var stops: [ResolvedGradientStop]
     public var spreadMethod: SpreadMethod
-    public var gradientUnits: GradientUnits
+    public var gradientUnits: CoordinateUnits
     public var gradientTransform: AffineTransform?
 
     public init(
@@ -174,7 +174,7 @@ public struct ResolvedRadialGradient: Hashable, Sendable {
         focalY: Double? = nil,
         stops: [ResolvedGradientStop],
         spreadMethod: SpreadMethod = .pad,
-        gradientUnits: GradientUnits = .objectBoundingBox,
+        gradientUnits: CoordinateUnits = .objectBoundingBox,
         gradientTransform: AffineTransform? = nil
     ) {
         self.centerX = centerX
@@ -205,7 +205,7 @@ public struct ResolvedPattern: Sendable {
     public var tileHeight: Double
     public var content: SVG
     public var transform: AffineTransform?
-    public var patternUnits: GradientUnits
+    public var patternUnits: CoordinateUnits
 
     public init(
         tileX: Double,
@@ -214,7 +214,7 @@ public struct ResolvedPattern: Sendable {
         tileHeight: Double,
         content: SVG,
         transform: AffineTransform? = nil,
-        patternUnits: GradientUnits = .objectBoundingBox
+        patternUnits: CoordinateUnits = .objectBoundingBox
     ) {
         self.tileX = tileX
         self.tileY = tileY

@@ -880,7 +880,8 @@ private func applyClipPath<R: SVGRenderer>(
 ) {
     var path = renderer.makePath()
     buildClipPath(&path, from: clipPath, with: renderer, context: context)
-    renderer.clip(path, rule: .nonzero)
+    let clipRule = context.presentation.fillRule ?? .nonzero
+    renderer.clip(path, rule: clipRule)
 }
 
 private func buildClipPath<R: SVGRenderer>(
@@ -990,9 +991,17 @@ private func resolveGradient(
     _ gradient: any GradientElement,
     presentation: PresentationAttributes
 ) -> ResolvedPaint2? {
-    let opacity = presentation.opacity ?? 1
     let fillOpacity = presentation.fillOpacity ?? 1
-    let alpha = opacity * fillOpacity
+    return resolveGradientWithOpacity(gradient, presentation: presentation, paintOpacity: fillOpacity)
+}
+
+private func resolveGradientWithOpacity(
+    _ gradient: any GradientElement,
+    presentation: PresentationAttributes,
+    paintOpacity: Double
+) -> ResolvedPaint2? {
+    let opacity = presentation.opacity ?? 1
+    let alpha = opacity * paintOpacity
     let currentColor = presentation.color
 
     if let linear = gradient as? LinearGradient {
@@ -1111,55 +1120,8 @@ private func resolveGradientForStroke(
     _ gradient: any GradientElement,
     presentation: PresentationAttributes
 ) -> ResolvedPaint2? {
-    let opacity = presentation.opacity ?? 1
     let strokeOpacity = presentation.strokeOpacity ?? 1
-    let alpha = opacity * strokeOpacity
-    let currentColor = presentation.color
-
-    if let linear = gradient as? LinearGradient {
-        let stops = linear.stops.map { stop in
-            var color = resolveColorToResolved(stop.color, currentColor: currentColor)
-            color.alpha *= alpha * (stop.opacity ?? 1)
-            return ResolvedGradientStop(offset: stop.offset, color: color)
-        }
-        let gradientTransform = linear.gradientTransform.flatMap { makeAffineTransformOptional(from: $0) }
-        let resolved = ResolvedLinearGradient(
-            startX: linear.x1?.value ?? 0,
-            startY: linear.y1?.value ?? 0,
-            endX: linear.x2?.value ?? 1,
-            endY: linear.y2?.value ?? 0,
-            stops: stops,
-            spreadMethod: linear.spreadMethod ?? .pad,
-            gradientUnits: linear.gradientUnits ?? .objectBoundingBox,
-            gradientTransform: gradientTransform
-        )
-        return .gradient(.linear(resolved))
-    }
-
-    if let radial = gradient as? RadialGradient {
-        let stops = radial.stops.map { stop in
-            var color = resolveColorToResolved(stop.color, currentColor: currentColor)
-            color.alpha *= alpha * (stop.opacity ?? 1)
-            return ResolvedGradientStop(offset: stop.offset, color: color)
-        }
-        let cx = radial.cx?.value ?? 0.5
-        let cy = radial.cy?.value ?? 0.5
-        let gradientTransform = radial.gradientTransform.flatMap { makeAffineTransformOptional(from: $0) }
-        let resolved = ResolvedRadialGradient(
-            centerX: cx,
-            centerY: cy,
-            radius: radial.r?.value ?? 0.5,
-            focalX: radial.fx?.value ?? cx,
-            focalY: radial.fy?.value ?? cy,
-            stops: stops,
-            spreadMethod: radial.spreadMethod ?? .pad,
-            gradientUnits: radial.gradientUnits ?? .objectBoundingBox,
-            gradientTransform: gradientTransform
-        )
-        return .gradient(.radial(resolved))
-    }
-
-    return nil
+    return resolveGradientWithOpacity(gradient, presentation: presentation, paintOpacity: strokeOpacity)
 }
 
 private func resolveFillColor(from fill: Fill?, currentColor: Color?) -> ResolvedColor {
@@ -1256,9 +1218,9 @@ private func makeViewBoxTransform(
     let meetOrSlice = preserveAspectRatio?.meetOrSlice ?? .meet
 
     if alignment == .none {
-        return AffineTransform.translation(x: 0, y: 0)
+        // For preserveAspectRatio="none", apply non-uniform scaling to fit viewBox to viewport
+        return AffineTransform.translation(x: -viewBox.minX, y: -viewBox.minY)
             .concatenating(.scale(x: scaleX, y: scaleY))
-            .concatenating(.translation(x: -viewBox.minX, y: -viewBox.minY))
     }
 
     let scale = meetOrSlice == .slice ? max(scaleX, scaleY) : min(scaleX, scaleY)
@@ -1276,9 +1238,10 @@ private func makeViewBoxTransform(
         end: outputSize.height - scaledHeight
     )
 
-    return AffineTransform.translation(x: offsetX, y: offsetY)
+    // Transform order: translate viewBox to origin, scale uniformly, then offset for alignment
+    return AffineTransform.translation(x: -viewBox.minX, y: -viewBox.minY)
         .concatenating(.scale(x: scale, y: scale))
-        .concatenating(.translation(x: -viewBox.minX, y: -viewBox.minY))
+        .concatenating(.translation(x: offsetX, y: offsetY))
 }
 
 private func alignmentOffset(

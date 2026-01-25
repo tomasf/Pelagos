@@ -1,7 +1,7 @@
 import Foundation
 
 /// An SVG group element (g)
-struct Group: ContainerElement, GraphicElement, Hashable, Sendable {
+struct Group: ContainerElement, GraphicElement, Sendable {
     var id: String?
     var presentation: PresentationAttributes
 
@@ -17,12 +17,4 @@ struct Group: ContainerElement, GraphicElement, Hashable, Sendable {
         self.presentation = presentation
     }
 
-    static func == (lhs: Group, rhs: Group) -> Bool {
-        lhs.id == rhs.id && lhs.presentation == rhs.presentation
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-        hasher.combine(presentation)
-    }
 }

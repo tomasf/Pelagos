@@ -142,7 +142,7 @@ enum ElementParsers {
             x2: AttributeParser.parseLength(node[attribute: "x2"]),
             y2: AttributeParser.parseLength(node[attribute: "y2"]),
             stops: stops,
-            gradientUnits: AttributeParser.parseEnum(node[attribute: "gradientUnits"], type: GradientUnits.self),
+            gradientUnits: AttributeParser.parseEnum(node[attribute: "gradientUnits"], type: CoordinateUnits.self),
             gradientTransform: AttributeParser.parseTransform(node[attribute: "gradientTransform"]),
             spreadMethod: AttributeParser.parseEnum(node[attribute: "spreadMethod"], type: SpreadMethod.self),
             href: parseHref(from: node)
@@ -159,7 +159,7 @@ enum ElementParsers {
             fy: AttributeParser.parseLength(node[attribute: "fy"]),
             fr: AttributeParser.parseLength(node[attribute: "fr"]),
             stops: stops,
-            gradientUnits: AttributeParser.parseEnum(node[attribute: "gradientUnits"], type: GradientUnits.self),
+            gradientUnits: AttributeParser.parseEnum(node[attribute: "gradientUnits"], type: CoordinateUnits.self),
             gradientTransform: AttributeParser.parseTransform(node[attribute: "gradientTransform"]),
             spreadMethod: AttributeParser.parseEnum(node[attribute: "spreadMethod"], type: SpreadMethod.self),
             href: parseHref(from: node)
@@ -206,8 +206,8 @@ enum ElementParsers {
             y: AttributeParser.parseLength(node[attribute: "y"]),
             width: AttributeParser.parseLength(node[attribute: "width"]),
             height: AttributeParser.parseLength(node[attribute: "height"]),
-            patternUnits: AttributeParser.parseEnum(node[attribute: "patternUnits"], type: GradientUnits.self),
-            patternContentUnits: AttributeParser.parseEnum(node[attribute: "patternContentUnits"], type: GradientUnits.self),
+            patternUnits: AttributeParser.parseEnum(node[attribute: "patternUnits"], type: CoordinateUnits.self),
+            patternContentUnits: AttributeParser.parseEnum(node[attribute: "patternContentUnits"], type: CoordinateUnits.self),
             patternTransform: AttributeParser.parseTransform(node[attribute: "patternTransform"]),
             viewBox: AttributeParser.parseViewBox(node[attribute: "viewBox"]),
             preserveAspectRatio: AttributeParser.parsePreserveAspectRatio(node[attribute: "preserveAspectRatio"]),
@@ -221,7 +221,7 @@ enum ElementParsers {
     static func parseClipPath(from node: Node, children: [any GraphicElement]) -> ClipPath {
         ClipPath(
             id: node[attribute: "id"],
-            clipPathUnits: AttributeParser.parseEnum(node[attribute: "clipPathUnits"], type: GradientUnits.self),
+            clipPathUnits: AttributeParser.parseEnum(node[attribute: "clipPathUnits"], type: CoordinateUnits.self),
             children: children
         )
     }
@@ -233,8 +233,8 @@ enum ElementParsers {
             y: AttributeParser.parseLength(node[attribute: "y"]),
             width: AttributeParser.parseLength(node[attribute: "width"]),
             height: AttributeParser.parseLength(node[attribute: "height"]),
-            maskUnits: AttributeParser.parseEnum(node[attribute: "maskUnits"], type: GradientUnits.self),
-            maskContentUnits: AttributeParser.parseEnum(node[attribute: "maskContentUnits"], type: GradientUnits.self),
+            maskUnits: AttributeParser.parseEnum(node[attribute: "maskUnits"], type: CoordinateUnits.self),
+            maskContentUnits: AttributeParser.parseEnum(node[attribute: "maskContentUnits"], type: CoordinateUnits.self),
             children: children
         )
     }
@@ -246,8 +246,8 @@ enum ElementParsers {
             y: AttributeParser.parseLength(node[attribute: "y"]),
             width: AttributeParser.parseLength(node[attribute: "width"]),
             height: AttributeParser.parseLength(node[attribute: "height"]),
-            filterUnits: AttributeParser.parseEnum(node[attribute: "filterUnits"], type: GradientUnits.self),
-            primitiveUnits: AttributeParser.parseEnum(node[attribute: "primitiveUnits"], type: GradientUnits.self),
+            filterUnits: AttributeParser.parseEnum(node[attribute: "filterUnits"], type: CoordinateUnits.self),
+            primitiveUnits: AttributeParser.parseEnum(node[attribute: "primitiveUnits"], type: CoordinateUnits.self),
             primitives: primitives
         )
     }

@@ -1,7 +1,7 @@
 import Foundation
 
 /// The root SVG element
-public struct SVG: ContainerElement, GraphicElement, Hashable, Sendable {
+public struct SVG: ContainerElement, GraphicElement, Sendable {
     var id: String?
     var presentation: PresentationAttributes
 
@@ -58,22 +58,4 @@ public struct SVG: ContainerElement, GraphicElement, Hashable, Sendable {
         return (width: resolvedWidth, height: resolvedHeight)
     }
 
-    public static func == (lhs: SVG, rhs: SVG) -> Bool {
-        lhs.id == rhs.id &&
-        lhs.width == rhs.width &&
-        lhs.height == rhs.height &&
-        lhs.viewBox == rhs.viewBox &&
-        lhs.preserveAspectRatio == rhs.preserveAspectRatio &&
-        lhs.presentation == rhs.presentation
-        // Note: children and definitions comparison omitted for simplicity
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-        hasher.combine(width)
-        hasher.combine(height)
-        hasher.combine(viewBox)
-        hasher.combine(preserveAspectRatio)
-        hasher.combine(presentation)
-    }
 }

@@ -10,7 +10,7 @@ struct LinearGradient: GradientElement, Hashable, Sendable {
     var y2: Length?
 
     var stops: [GradientStop]
-    var gradientUnits: GradientUnits?
+    var gradientUnits: CoordinateUnits?
     var gradientTransform: [Transform]?
     var spreadMethod: SpreadMethod?
     var href: String?
@@ -22,7 +22,7 @@ struct LinearGradient: GradientElement, Hashable, Sendable {
         x2: Length? = nil,
         y2: Length? = nil,
         stops: [GradientStop] = [],
-        gradientUnits: GradientUnits? = nil,
+        gradientUnits: CoordinateUnits? = nil,
         gradientTransform: [Transform]? = nil,
         spreadMethod: SpreadMethod? = nil,
         href: String? = nil

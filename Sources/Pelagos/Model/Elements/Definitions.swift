@@ -23,12 +23,12 @@ struct Definitions: Hashable, Sendable {
     }
 
     static func == (lhs: Definitions, rhs: Definitions) -> Bool {
-        // Simple equality based on keys
+        // Equality based on keys only (container types don't support deep equality)
         lhs.defs.compactMap { $0.id }.sorted() == rhs.defs.compactMap { $0.id }.sorted() &&
         lhs.gradients.keys.sorted() == rhs.gradients.keys.sorted() &&
-        lhs.patterns == rhs.patterns &&
-        lhs.clipPaths == rhs.clipPaths &&
-        lhs.masks == rhs.masks &&
+        lhs.patterns.keys.sorted() == rhs.patterns.keys.sorted() &&
+        lhs.clipPaths.keys.sorted() == rhs.clipPaths.keys.sorted() &&
+        lhs.masks.keys.sorted() == rhs.masks.keys.sorted() &&
         lhs.filters == rhs.filters &&
         lhs.symbols.keys.sorted() == rhs.symbols.keys.sorted() &&
         lhs.elements.keys.sorted() == rhs.elements.keys.sorted()
@@ -37,9 +37,9 @@ struct Definitions: Hashable, Sendable {
     func hash(into hasher: inout Hasher) {
         hasher.combine(defs.compactMap { $0.id }.sorted())
         hasher.combine(gradients.keys.sorted())
-        hasher.combine(patterns)
-        hasher.combine(clipPaths)
-        hasher.combine(masks)
+        hasher.combine(patterns.keys.sorted())
+        hasher.combine(clipPaths.keys.sorted())
+        hasher.combine(masks.keys.sorted())
         hasher.combine(filters)
         hasher.combine(symbols.keys.sorted())
         hasher.combine(elements.keys.sorted())

@@ -12,7 +12,7 @@ struct RadialGradient: GradientElement, Hashable, Sendable {
     var fr: Length?
 
     var stops: [GradientStop]
-    var gradientUnits: GradientUnits?
+    var gradientUnits: CoordinateUnits?
     var gradientTransform: [Transform]?
     var spreadMethod: SpreadMethod?
     var href: String?
@@ -26,7 +26,7 @@ struct RadialGradient: GradientElement, Hashable, Sendable {
         fy: Length? = nil,
         fr: Length? = nil,
         stops: [GradientStop] = [],
-        gradientUnits: GradientUnits? = nil,
+        gradientUnits: CoordinateUnits? = nil,
         gradientTransform: [Transform]? = nil,
         spreadMethod: SpreadMethod? = nil,
         href: String? = nil
