@@ -43,10 +43,16 @@ struct RenderContext: Sendable {
 // MARK: - SVG Render Extension
 
 public extension SVG {
-    /// Render this SVG using the provided renderer and an optional output size.
+    /// Renders this SVG document using the provided renderer.
     ///
-    /// When a size is provided and a viewBox is present, a viewBox transform is
-    /// applied to map the SVG coordinate space into the output size.
+    /// The renderer receives drawing commands (path construction, fills, strokes, text, images)
+    /// that can be used to render the SVG to any graphics backend.
+    ///
+    /// - Parameters:
+    ///   - renderer: The renderer to use for drawing operations.
+    ///   - size: An optional output size. When provided with a viewBox, the SVG content
+    ///           is scaled and positioned according to the `preserveAspectRatio` attribute.
+    ///           If nil, the SVG renders at its intrinsic size.
     func render<R: SVGRenderer>(with renderer: R, size: (width: Double, height: Double)? = nil) {
         let context = RenderContext(
             presentation: presentation,
@@ -785,15 +791,15 @@ private func buildTextRuns(
     from content: [TextContent],
     presentation: PresentationAttributes,
     viewportHeight: Double
-) -> [ResolvedTextRun2] {
-    var runs: [ResolvedTextRun2] = []
+) -> [ResolvedTextRun] {
+    var runs: [ResolvedTextRun] = []
     let baseFontSize = presentation.fontSize?.resolvedValue(viewport: viewportHeight) ?? 16
 
     for item in content {
         switch item {
         case .text(let text):
             let color = resolveFillColor(from: presentation.fill, currentColor: presentation.color)
-            runs.append(ResolvedTextRun2(
+            runs.append(ResolvedTextRun(
                 text: text,
                 fontFamily: presentation.fontFamily,
                 fontSize: baseFontSize,
@@ -810,7 +816,7 @@ private func buildTextRuns(
             let merged = presentation.merged(with: textPath.presentation)
             let fontSize = merged.fontSize?.resolvedValue(viewport: viewportHeight) ?? baseFontSize
             let color = resolveFillColor(from: merged.fill, currentColor: merged.color)
-            runs.append(ResolvedTextRun2(
+            runs.append(ResolvedTextRun(
                 text: textPath.content,
                 fontFamily: merged.fontFamily,
                 fontSize: fontSize,
