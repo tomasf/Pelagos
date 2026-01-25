@@ -39,15 +39,14 @@ do {
             fatalError("Failed to create bitmap context.")
         }
 
-        renderSVG(svg, in: context, size: size, fillBackground: true)
+        renderSVG(svg, in: context, size: size)
 
         guard let image = context.makeImage() else {
             fatalError("Failed to create CGImage.")
         }
 
         let outputFile = outputURL.appendingPathComponent(fileURL.deletingPathExtension().lastPathComponent + ".png")
-        let url = outputFile as CFURL
-        guard let destination = CGImageDestinationCreateWithURL(url, UTType.png.identifier as CFString, 1, nil) else {
+        guard let destination = CGImageDestinationCreateWithURL(outputFile as CFURL, UTType.png.identifier as CFString, 1, nil) else {
             fatalError("Failed to create PNG destination.")
         }
         CGImageDestinationAddImage(destination, image, nil)
@@ -63,7 +62,7 @@ do {
             fatalError("Failed to create PDF context.")
         }
         pdfContext.beginPDFPage(nil as CFDictionary?)
-        renderSVG(svg, in: pdfContext, size: size, fillBackground: false)
+        renderSVG(svg, in: pdfContext, size: size)
         pdfContext.endPDFPage()
         pdfContext.closePDF()
 
@@ -85,14 +84,8 @@ exit(1)
 private func renderSVG(
     _ svg: SVG,
     in context: CGContext,
-    size: (width: Double, height: Double),
-    fillBackground: Bool
+    size: (width: Double, height: Double)
 ) {
-    if fillBackground {
-        context.setFillColor(CGColor(gray: 1, alpha: 1))
-        context.fill(CGRect(x: 0, y: 0, width: size.width, height: size.height))
-    }
-
     context.translateBy(x: 0, y: size.height)
     context.scaleBy(x: 1, y: -1)
 

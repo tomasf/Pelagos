@@ -51,6 +51,7 @@ public struct SVGParser {
         collectDefsContainers(from: root, into: &definitions, styleRules: styleRules, ancestors: [])
         resolveReferences(in: &definitions)
         let children = try parseChildren(of: root, definitions: &definitions, styleRules: styleRules, ancestors: [])
+        resolveReferences(in: &definitions)
 
         return SVG(
             id: root[attribute: "id"],
