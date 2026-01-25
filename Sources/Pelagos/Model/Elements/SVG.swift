@@ -5,20 +5,10 @@ public struct SVG: ContainerElement, GraphicElement, Hashable, Sendable {
     var id: String?
     var presentation: PresentationAttributes
 
-    public var width: Length?
-    public var height: Length?
-    public var viewBox: ViewBox?
-    public var preserveAspectRatio: PreserveAspectRatio?
-
-    /// The resolved size of the SVG, using `width`/`height` or `viewBox` as fallback.
-    public var size: (width: Double, height: Double)? {
-        let resolvedWidth = width?.resolvedValue(viewport: viewBox?.width) ?? viewBox?.width
-        let resolvedHeight = height?.resolvedValue(viewport: viewBox?.height) ?? viewBox?.height
-        guard let resolvedWidth, let resolvedHeight else {
-            return nil
-        }
-        return (width: resolvedWidth, height: resolvedHeight)
-    }
+    var width: Length?
+    var height: Length?
+    var viewBox: ViewBox?
+    var preserveAspectRatio: PreserveAspectRatio?
 
     var children: [any GraphicElement]
     var definitions: Definitions
@@ -41,6 +31,31 @@ public struct SVG: ContainerElement, GraphicElement, Hashable, Sendable {
         self.children = children
         self.definitions = definitions
         self.presentation = presentation
+    }
+
+    /// Parse an SVG document from a URL.
+    public init(url: URL) throws {
+        self = try SVGParser().parse(url: url)
+    }
+
+    /// Parse an SVG document from raw data.
+    public init(data: Data) throws {
+        self = try SVGParser().parse(data: data)
+    }
+
+    /// Parse an SVG document from a string.
+    public init(string: String) throws {
+        self = try SVGParser().parse(string: string)
+    }
+
+    /// The resolved size of the SVG, using `width`/`height` or `viewBox` as fallback.
+    public var size: (width: Double, height: Double)? {
+        let resolvedWidth = width?.resolvedValue(viewport: viewBox?.width) ?? viewBox?.width
+        let resolvedHeight = height?.resolvedValue(viewport: viewBox?.height) ?? viewBox?.height
+        guard let resolvedWidth, let resolvedHeight else {
+            return nil
+        }
+        return (width: resolvedWidth, height: resolvedHeight)
     }
 
     public static func == (lhs: SVG, rhs: SVG) -> Bool {

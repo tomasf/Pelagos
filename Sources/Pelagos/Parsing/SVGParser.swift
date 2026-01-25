@@ -2,25 +2,25 @@ import Foundation
 import Nodal
 
 /// Parser for SVG documents
-public struct SVGParser {
-    public init() {}
+struct SVGParser {
+    init() {}
 
     // MARK: - Public API
 
     /// Parse SVG from a URL
-    public func parse(url: URL) throws -> SVG {
+    func parse(url: URL) throws -> SVG {
         let document = try Document(url: url)
         return try parse(document: document)
     }
 
     /// Parse SVG from data
-    public func parse(data: Data) throws -> SVG {
+    func parse(data: Data) throws -> SVG {
         let document = try Document(data: data)
         return try parse(document: document)
     }
 
     /// Parse SVG from a string
-    public func parse(string: String) throws -> SVG {
+    func parse(string: String) throws -> SVG {
         let document = try Document(string: string)
         return try parse(document: document)
     }

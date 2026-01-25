@@ -20,17 +20,14 @@ do {
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
 
     for fileURL in svgFiles {
-        let svg = try SVGParser().parse(url: fileURL)
-
+        let svg = try SVG(url: fileURL)
         let size = svg.size ?? (width: 512, height: 512)
-        let width = size.width
-        let height = size.height
 
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         guard let context = CGContext(
             data: nil,
-            width: Int(width),
-            height: Int(height),
+            width: Int(size.width),
+            height: Int(size.height),
             bitsPerComponent: 8,
             bytesPerRow: 0,
             space: colorSpace,
@@ -39,7 +36,7 @@ do {
             fatalError("Failed to create bitmap context.")
         }
 
-        renderSVG(svg, in: context, size: size)
+        try renderSVG(svg, in: context, size: size)
 
         guard let image = context.makeImage() else {
             fatalError("Failed to create CGImage.")
@@ -56,13 +53,13 @@ do {
 
         print("Wrote PNG to \(outputFile.path)")
 
-        var mediaBox = CGRect(x: 0, y: 0, width: width, height: height)
+        var mediaBox = CGRect(x: 0, y: 0, width: size.width, height: size.height)
         let pdfFile = outputURL.appendingPathComponent(fileURL.deletingPathExtension().lastPathComponent + ".pdf")
         guard let pdfContext = CGContext(pdfFile as CFURL, mediaBox: &mediaBox, nil) else {
             fatalError("Failed to create PDF context.")
         }
         pdfContext.beginPDFPage(nil as CFDictionary?)
-        renderSVG(svg, in: pdfContext, size: size)
+        try renderSVG(svg, in: pdfContext, size: size)
         pdfContext.endPDFPage()
         pdfContext.closePDF()
 
@@ -85,10 +82,8 @@ private func renderSVG(
     _ svg: SVG,
     in context: CGContext,
     size: (width: Double, height: Double)
-) {
+) throws {
     context.translateBy(x: 0, y: size.height)
     context.scaleBy(x: 1, y: -1)
-
-    let renderer = CGRenderer(context: context)
-    svg.render(with: renderer, size: size)
+    svg.render(with: CGRenderer(context: context), size: size)
 }
