@@ -82,18 +82,26 @@ public struct StrokeStyle: Hashable, Sendable {
 
 // MARK: - Resolved Paint
 
+/// Color space for resolved colors
+public enum ColorSpace: Hashable, Sendable {
+    case sRGB
+    case displayP3
+}
+
 /// Fully resolved color for rendering (all named colors and currentColor resolved)
 public struct ResolvedColor: Hashable, Sendable {
     public var red: Double
     public var green: Double
     public var blue: Double
     public var alpha: Double
+    public var colorSpace: ColorSpace
 
-    public init(red: Double, green: Double, blue: Double, alpha: Double = 1) {
+    public init(red: Double, green: Double, blue: Double, alpha: Double = 1, colorSpace: ColorSpace = .sRGB) {
         self.red = red
         self.green = green
         self.blue = blue
         self.alpha = alpha
+        self.colorSpace = colorSpace
     }
 
     public static let black = ResolvedColor(red: 0, green: 0, blue: 0)

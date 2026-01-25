@@ -1107,7 +1107,7 @@ private func resolveColorToResolved(_ color: Color, currentColor: Color? = nil) 
     case .rgba(let r, let g, let b, let a):
         return ResolvedColor(red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, alpha: a)
     case .p3(let r, let g, let b, let a):
-        return ResolvedColor(red: r, green: g, blue: b, alpha: a)
+        return ResolvedColor(red: r, green: g, blue: b, alpha: a, colorSpace: .displayP3)
     case .named(let name):
         if let resolved = Color.namedColors[name] {
             return resolveColorToResolved(resolved, currentColor: currentColor)

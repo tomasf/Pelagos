@@ -1,7 +1,7 @@
 import Foundation
 
 /// The preserveAspectRatio attribute value
-public struct PreserveAspectRatio: Hashable, Sendable {
+struct PreserveAspectRatio: Hashable, Sendable {
     public enum Alignment: String, Hashable, Sendable {
         case none
         case xMinYMin

@@ -60,19 +60,21 @@ public final class CGRenderer: SVGRenderer {
 
     // MARK: - Color Conversion
 
-    public func makeColor(r: UInt8, g: UInt8, b: UInt8, a: Double) -> CGColor {
-        CGColor(
-            red: CGFloat(r) / 255,
-            green: CGFloat(g) / 255,
-            blue: CGFloat(b) / 255,
-            alpha: CGFloat(a)
-        )
-    }
-
-    public func makeColor(p3 r: Double, g: Double, b: Double, a: Double) -> CGColor {
-        let space = CGColorSpace(name: CGColorSpace.displayP3) ?? CGColorSpaceCreateDeviceRGB()
-        let components = [CGFloat(r), CGFloat(g), CGFloat(b), CGFloat(a)]
-        return CGColor(colorSpace: space, components: components) ?? CGColor(red: CGFloat(r), green: CGFloat(g), blue: CGFloat(b), alpha: CGFloat(a))
+    public func makeColor(from resolved: ResolvedColor) -> CGColor {
+        switch resolved.colorSpace {
+        case .sRGB:
+            return CGColor(
+                red: CGFloat(resolved.red),
+                green: CGFloat(resolved.green),
+                blue: CGFloat(resolved.blue),
+                alpha: CGFloat(resolved.alpha)
+            )
+        case .displayP3:
+            let space = CGColorSpace(name: CGColorSpace.displayP3) ?? CGColorSpaceCreateDeviceRGB()
+            let components = [CGFloat(resolved.red), CGFloat(resolved.green), CGFloat(resolved.blue), CGFloat(resolved.alpha)]
+            return CGColor(colorSpace: space, components: components)
+                ?? CGColor(red: CGFloat(resolved.red), green: CGFloat(resolved.green), blue: CGFloat(resolved.blue), alpha: CGFloat(resolved.alpha))
+        }
     }
 
     // MARK: - Drawing Operations

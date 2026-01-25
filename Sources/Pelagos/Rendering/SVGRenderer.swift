@@ -50,13 +50,7 @@ public protocol SVGRenderer<Path, NativeColor> {
 
     // MARK: - Color Conversion
 
-    /// Create a color from RGB components (0-255)
-    func makeColor(r: UInt8, g: UInt8, b: UInt8, a: Double) -> NativeColor
-
-    /// Create a color from Display P3 components (0-1)
-    func makeColor(p3 r: Double, g: Double, b: Double, a: Double) -> NativeColor
-
-    /// Create a color from a resolved color
+    /// Create a native color from a resolved color
     func makeColor(from resolved: ResolvedColor) -> NativeColor
 
     // MARK: - Drawing Operations
@@ -139,16 +133,6 @@ public extension SVGRenderer {
         curveTo(&path, cp1x: cx - rx, cp1y: cy - ry * k, cp2x: cx - rx * k, cp2y: cy - ry, x: cx, y: cy - ry)
         curveTo(&path, cp1x: cx + rx * k, cp1y: cy - ry, cp2x: cx + rx, cp2y: cy - ry * k, x: cx + rx, y: cy)
         closePath(&path)
-    }
-
-    /// Default color conversion from ResolvedColor
-    func makeColor(from resolved: ResolvedColor) -> NativeColor {
-        makeColor(
-            r: UInt8(clamping: Int(resolved.red * 255)),
-            g: UInt8(clamping: Int(resolved.green * 255)),
-            b: UInt8(clamping: Int(resolved.blue * 255)),
-            a: resolved.alpha
-        )
     }
 
     /// Default no-op for opacity (renderers can override)

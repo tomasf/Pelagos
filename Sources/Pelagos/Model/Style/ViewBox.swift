@@ -1,7 +1,7 @@
 import Foundation
 
 /// The viewBox attribute value
-public struct ViewBox: Hashable, Sendable {
+struct ViewBox: Hashable, Sendable {
     public var minX: Double
     public var minY: Double
     public var width: Double

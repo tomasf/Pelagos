@@ -1,7 +1,7 @@
 import Foundation
 
 /// A length value with an optional unit
-public struct Length: Hashable, Sendable {
+struct Length: Hashable, Sendable {
     public enum Unit: String, Hashable, Sendable {
         case none = ""
         case px

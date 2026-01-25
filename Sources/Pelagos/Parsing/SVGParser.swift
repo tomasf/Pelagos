@@ -485,7 +485,7 @@ struct SVGParser {
 
 // MARK: - Errors
 
-public enum SVGParseError: Error {
+enum SVGParseError: Error {
     case noRootElement
     case invalidRootElement(String)
     case parsingFailed(String)
