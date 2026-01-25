@@ -897,6 +897,23 @@ private func buildClipPath<R: SVGRenderer>(
     context: RenderContext
 ) {
     for child in clipPath.children {
+        // Get the transform for this element if any
+        let transform: AffineTransform? = {
+            guard let transforms = child.presentation.transform else {
+                return nil
+            }
+            return makeAffineTransformOptional(from: transforms)
+        }()
+
+        // Helper to apply transform to a point
+        func transformPoint(x: Double, y: Double) -> (x: Double, y: Double) {
+            guard let t = transform else { return (x, y) }
+            return (
+                x: t.a * x + t.c * y + t.tx,
+                y: t.b * x + t.d * y + t.ty
+            )
+        }
+
         if let rect = child as? Rect {
             let x = resolveLength(rect.x, viewRef: context.viewportWidth, fontSize: context.fontSize)
             let y = resolveLength(rect.y, viewRef: context.viewportHeight, fontSize: context.fontSize)
@@ -904,26 +921,129 @@ private func buildClipPath<R: SVGRenderer>(
             let height = resolveLength(rect.height, viewRef: context.viewportHeight, fontSize: context.fontSize)
             let rx = resolveLength(rect.rx ?? rect.ry, viewRef: context.viewportWidth, fontSize: context.fontSize)
             let ry = resolveLength(rect.ry ?? rect.rx, viewRef: context.viewportHeight, fontSize: context.fontSize)
-            renderer.addRect(&path, x: x, y: y, width: width, height: height, rx: rx, ry: ry)
+
+            if transform != nil {
+                // For transformed rects, we need to build the path manually
+                // since addRect doesn't support transforms
+                let corners = [
+                    (x: x, y: y),
+                    (x: x + width, y: y),
+                    (x: x + width, y: y + height),
+                    (x: x, y: y + height)
+                ].map { transformPoint(x: $0.x, y: $0.y) }
+
+                renderer.moveTo(&path, x: corners[0].x, y: corners[0].y)
+                renderer.lineTo(&path, x: corners[1].x, y: corners[1].y)
+                renderer.lineTo(&path, x: corners[2].x, y: corners[2].y)
+                renderer.lineTo(&path, x: corners[3].x, y: corners[3].y)
+                renderer.closePath(&path)
+            } else {
+                renderer.addRect(&path, x: x, y: y, width: width, height: height, rx: rx, ry: ry)
+            }
         } else if let circle = child as? Circle {
             let cx = resolveLength(circle.cx, viewRef: context.viewportWidth, fontSize: context.fontSize)
             let cy = resolveLength(circle.cy, viewRef: context.viewportHeight, fontSize: context.fontSize)
             let r = resolveLength(circle.r, viewRef: min(context.viewportWidth, context.viewportHeight), fontSize: context.fontSize)
-            renderer.addEllipse(&path, cx: cx, cy: cy, rx: r, ry: r)
+
+            if let t = transform {
+                // Transform center and approximate radius scaling
+                let center = transformPoint(x: cx, y: cy)
+                let scaleX = sqrt(t.a * t.a + t.b * t.b)
+                let scaleY = sqrt(t.c * t.c + t.d * t.d)
+                renderer.addEllipse(&path, cx: center.x, cy: center.y, rx: r * scaleX, ry: r * scaleY)
+            } else {
+                renderer.addEllipse(&path, cx: cx, cy: cy, rx: r, ry: r)
+            }
         } else if let ellipse = child as? Ellipse {
             let cx = resolveLength(ellipse.cx, viewRef: context.viewportWidth, fontSize: context.fontSize)
             let cy = resolveLength(ellipse.cy, viewRef: context.viewportHeight, fontSize: context.fontSize)
             let rx = resolveLength(ellipse.rx, viewRef: context.viewportWidth, fontSize: context.fontSize)
             let ry = resolveLength(ellipse.ry, viewRef: context.viewportHeight, fontSize: context.fontSize)
-            renderer.addEllipse(&path, cx: cx, cy: cy, rx: rx, ry: ry)
+
+            if let t = transform {
+                let center = transformPoint(x: cx, y: cy)
+                let scaleX = sqrt(t.a * t.a + t.b * t.b)
+                let scaleY = sqrt(t.c * t.c + t.d * t.d)
+                renderer.addEllipse(&path, cx: center.x, cy: center.y, rx: rx * scaleX, ry: ry * scaleY)
+            } else {
+                renderer.addEllipse(&path, cx: cx, cy: cy, rx: rx, ry: ry)
+            }
         } else if let polygon = child as? Polygon, let first = polygon.points.first {
-            renderer.moveTo(&path, x: first.x, y: first.y)
+            let firstTransformed = transformPoint(x: first.x, y: first.y)
+            renderer.moveTo(&path, x: firstTransformed.x, y: firstTransformed.y)
             for point in polygon.points.dropFirst() {
-                renderer.lineTo(&path, x: point.x, y: point.y)
+                let pt = transformPoint(x: point.x, y: point.y)
+                renderer.lineTo(&path, x: pt.x, y: pt.y)
             }
             renderer.closePath(&path)
         } else if let pathElement = child as? Path {
-            buildPath(&path, from: pathElement.segments, with: renderer)
+            if let t = transform {
+                // Transform path segments
+                func transformPt(_ p: Point) -> Point {
+                    Point(
+                        x: t.a * p.x + t.c * p.y + t.tx,
+                        y: t.b * p.x + t.d * p.y + t.ty
+                    )
+                }
+                let transformedSegments = pathElement.segments.map { segment -> PathSegment in
+                    switch segment {
+                    case .moveTo(let point):
+                        return .moveTo(transformPt(point))
+                    case .moveToRelative(let point):
+                        // Relative moves: only transform the delta (no translation)
+                        return .moveToRelative(Point(x: t.a * point.x + t.c * point.y, y: t.b * point.x + t.d * point.y))
+                    case .lineTo(let point):
+                        return .lineTo(transformPt(point))
+                    case .lineToRelative(let point):
+                        return .lineToRelative(Point(x: t.a * point.x + t.c * point.y, y: t.b * point.x + t.d * point.y))
+                    case .horizontalLineTo(let x):
+                        // Convert to lineTo since transform may affect both axes
+                        return .lineTo(transformPt(Point(x: x, y: 0)))
+                    case .horizontalLineToRelative(let dx):
+                        return .lineToRelative(Point(x: t.a * dx, y: t.b * dx))
+                    case .verticalLineTo(let y):
+                        return .lineTo(transformPt(Point(x: 0, y: y)))
+                    case .verticalLineToRelative(let dy):
+                        return .lineToRelative(Point(x: t.c * dy, y: t.d * dy))
+                    case .curveTo(let control1, let control2, let end):
+                        return .curveTo(control1: transformPt(control1), control2: transformPt(control2), end: transformPt(end))
+                    case .curveToRelative(let control1, let control2, let end):
+                        return .curveToRelative(
+                            control1: Point(x: t.a * control1.x + t.c * control1.y, y: t.b * control1.x + t.d * control1.y),
+                            control2: Point(x: t.a * control2.x + t.c * control2.y, y: t.b * control2.x + t.d * control2.y),
+                            end: Point(x: t.a * end.x + t.c * end.y, y: t.b * end.x + t.d * end.y)
+                        )
+                    case .smoothCurveTo(let control2, let end):
+                        return .smoothCurveTo(control2: transformPt(control2), end: transformPt(end))
+                    case .smoothCurveToRelative(let control2, let end):
+                        return .smoothCurveToRelative(
+                            control2: Point(x: t.a * control2.x + t.c * control2.y, y: t.b * control2.x + t.d * control2.y),
+                            end: Point(x: t.a * end.x + t.c * end.y, y: t.b * end.x + t.d * end.y)
+                        )
+                    case .quadraticCurveTo(let control, let end):
+                        return .quadraticCurveTo(control: transformPt(control), end: transformPt(end))
+                    case .quadraticCurveToRelative(let control, let end):
+                        return .quadraticCurveToRelative(
+                            control: Point(x: t.a * control.x + t.c * control.y, y: t.b * control.x + t.d * control.y),
+                            end: Point(x: t.a * end.x + t.c * end.y, y: t.b * end.x + t.d * end.y)
+                        )
+                    case .smoothQuadraticCurveTo(let point):
+                        return .smoothQuadraticCurveTo(transformPt(point))
+                    case .smoothQuadraticCurveToRelative(let point):
+                        return .smoothQuadraticCurveToRelative(Point(x: t.a * point.x + t.c * point.y, y: t.b * point.x + t.d * point.y))
+                    case .arcTo(let rx, let ry, let xAxisRotation, let largeArcFlag, let sweepFlag, let end):
+                        // Arc radii need special handling with transforms, but for simple translate this works
+                        return .arcTo(rx: rx, ry: ry, xAxisRotation: xAxisRotation, largeArcFlag: largeArcFlag, sweepFlag: sweepFlag, end: transformPt(end))
+                    case .arcToRelative(let rx, let ry, let xAxisRotation, let largeArcFlag, let sweepFlag, let end):
+                        return .arcToRelative(rx: rx, ry: ry, xAxisRotation: xAxisRotation, largeArcFlag: largeArcFlag, sweepFlag: sweepFlag, end: Point(x: t.a * end.x + t.c * end.y, y: t.b * end.x + t.d * end.y))
+                    case .closePath:
+                        return .closePath
+                    }
+                }
+                buildPath(&path, from: transformedSegments, with: renderer)
+            } else {
+                buildPath(&path, from: pathElement.segments, with: renderer)
+            }
         } else if let group = child as? Group {
             for groupChild in group.children {
                 // Create a ClipPath wrapper for each child
