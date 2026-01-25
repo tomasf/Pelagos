@@ -43,8 +43,11 @@ struct RenderContext: Sendable {
 // MARK: - SVG Render Extension
 
 public extension SVG {
-    /// Render this SVG using the provided renderer
-    func render<R: SVGRenderer>(with renderer: R) {
+    /// Render this SVG using the provided renderer and an optional output size.
+    ///
+    /// When a size is provided and a viewBox is present, a viewBox transform is
+    /// applied to map the SVG coordinate space into the output size.
+    func render<R: SVGRenderer>(with renderer: R, size: (width: Double, height: Double)? = nil) {
         let context = RenderContext(
             presentation: presentation,
             transforms: presentation.transform ?? [],
@@ -53,6 +56,21 @@ public extension SVG {
             definitions: definitions,
             opacity: presentation.opacity ?? 1
         )
+
+        if let size, let viewBox {
+            let viewBoxTransform = makeViewBoxTransform(
+                viewBox: viewBox,
+                outputSize: size,
+                preserveAspectRatio: preserveAspectRatio
+            )
+            if !viewBoxTransform.isIdentity {
+                renderer.save()
+                renderer.concatenate(viewBoxTransform)
+                renderContainer(children, with: renderer, context: context)
+                renderer.restore()
+                return
+            }
+        }
 
         renderContainer(children, with: renderer, context: context)
     }
@@ -1139,6 +1157,59 @@ private func makeAffineTransform(from transforms: [Transform]) -> AffineTransfor
 private func makeAffineTransformOptional(from transforms: [Transform]) -> AffineTransform? {
     let result = makeAffineTransform(from: transforms)
     return result.isIdentity ? nil : result
+}
+
+private func makeViewBoxTransform(
+    viewBox: ViewBox,
+    outputSize: (width: Double, height: Double),
+    preserveAspectRatio: PreserveAspectRatio?
+) -> AffineTransform {
+    let scaleX = outputSize.width / viewBox.width
+    let scaleY = outputSize.height / viewBox.height
+    let alignment = preserveAspectRatio?.alignment ?? .xMidYMid
+    let meetOrSlice = preserveAspectRatio?.meetOrSlice ?? .meet
+
+    if alignment == .none {
+        return AffineTransform.translation(x: 0, y: 0)
+            .concatenating(.scale(x: scaleX, y: scaleY))
+            .concatenating(.translation(x: -viewBox.minX, y: -viewBox.minY))
+    }
+
+    let scale = meetOrSlice == .slice ? max(scaleX, scaleY) : min(scaleX, scaleY)
+    let scaledWidth = viewBox.width * scale
+    let scaledHeight = viewBox.height * scale
+
+    let offsetX = alignmentOffset(
+        alignment: alignment,
+        start: 0,
+        end: outputSize.width - scaledWidth
+    )
+    let offsetY = alignmentOffset(
+        alignment: alignment,
+        start: 0,
+        end: outputSize.height - scaledHeight
+    )
+
+    return AffineTransform.translation(x: offsetX, y: offsetY)
+        .concatenating(.scale(x: scale, y: scale))
+        .concatenating(.translation(x: -viewBox.minX, y: -viewBox.minY))
+}
+
+private func alignmentOffset(
+    alignment: PreserveAspectRatio.Alignment,
+    start: Double,
+    end: Double
+) -> Double {
+    switch alignment {
+    case .xMinYMin, .xMinYMid, .xMinYMax:
+        return start
+    case .xMidYMin, .xMidYMid, .xMidYMax:
+        return (start + end) / 2
+    case .xMaxYMin, .xMaxYMid, .xMaxYMax:
+        return end
+    case .none:
+        return start
+    }
 }
 
 private func convertTransform(_ transform: Transform) -> AffineTransform {

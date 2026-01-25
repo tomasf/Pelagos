@@ -96,66 +96,6 @@ private func renderSVG(
     context.translateBy(x: 0, y: size.height)
     context.scaleBy(x: 1, y: -1)
 
-    if let viewBox = svg.viewBox {
-        applyViewBoxTransform(
-            context: context,
-            viewBox: viewBox,
-            outputWidth: size.width,
-            outputHeight: size.height,
-            preserveAspectRatio: svg.preserveAspectRatio
-        )
-    }
-
-    svg.render(to: context)
-}
-
-private func applyViewBoxTransform(
-    context: CGContext,
-    viewBox: ViewBox,
-    outputWidth: Double,
-    outputHeight: Double,
-    preserveAspectRatio: PreserveAspectRatio?
-) {
-    let scaleX = outputWidth / viewBox.width
-    let scaleY = outputHeight / viewBox.height
-    let alignment = preserveAspectRatio?.alignment ?? .xMidYMid
-    let meetOrSlice = preserveAspectRatio?.meetOrSlice ?? .meet
-
-    if alignment == .none {
-        context.scaleBy(x: scaleX, y: scaleY)
-        context.translateBy(x: -viewBox.minX, y: -viewBox.minY)
-        return
-    }
-
-    let scale = meetOrSlice == .slice ? max(scaleX, scaleY) : min(scaleX, scaleY)
-    let scaledWidth = viewBox.width * scale
-    let scaledHeight = viewBox.height * scale
-
-    let offsetX = alignmentOffset(
-        alignment: alignment,
-        start: 0,
-        end: outputWidth - scaledWidth
-    )
-    let offsetY = alignmentOffset(
-        alignment: alignment,
-        start: 0,
-        end: outputHeight - scaledHeight
-    )
-
-    context.translateBy(x: offsetX, y: offsetY)
-    context.scaleBy(x: scale, y: scale)
-    context.translateBy(x: -viewBox.minX, y: -viewBox.minY)
-}
-
-private func alignmentOffset(alignment: PreserveAspectRatio.Alignment, start: Double, end: Double) -> Double {
-    switch alignment {
-    case .xMinYMin, .xMinYMid, .xMinYMax:
-        return start
-    case .xMidYMin, .xMidYMid, .xMidYMax:
-        return (start + end) / 2
-    case .xMaxYMin, .xMaxYMid, .xMaxYMax:
-        return end
-    case .none:
-        return start
-    }
+    let renderer = CGRenderer(context: context)
+    svg.render(with: renderer, size: size)
 }
