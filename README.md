@@ -1,6 +1,6 @@
 # Pelagos
 
-Pelagos is an SVG parsing and rendering library for Swift. It parses SVG documents into a structured representation and renders them through a pluggable renderer architecture.
+Pelagos is a cross-platform SVG parsing and rendering library for Swift. It parses SVG documents into a structured representation and renders them through a pluggable renderer architecture.
 
 ## Overview
 
