@@ -87,14 +87,29 @@ public struct SVG: ContainerElement, GraphicElement, Sendable {
     ///
     /// Returns the size specified by the `width` and `height` attributes,
     /// falling back to the `viewBox` dimensions if those are not specified.
+    /// When only one dimension is specified with a viewBox, the other dimension
+    /// is computed to preserve the viewBox aspect ratio.
     /// Returns `nil` if neither width/height nor viewBox provide size information.
     public var size: (width: Double, height: Double)? {
-        let resolvedWidth = width?.resolvedValue(viewport: viewBox?.width) ?? viewBox?.width
-        let resolvedHeight = height?.resolvedValue(viewport: viewBox?.height) ?? viewBox?.height
-        guard let resolvedWidth, let resolvedHeight else {
+        let explicitWidth = width?.resolvedValue(viewport: viewBox?.width)
+        let explicitHeight = height?.resolvedValue(viewport: viewBox?.height)
+
+        switch (explicitWidth, explicitHeight, viewBox) {
+        case let (w?, h?, _):
+            // Both dimensions specified
+            return (width: w, height: h)
+        case let (w?, nil, vb?) where vb.height > 0:
+            // Only width specified - compute height from aspect ratio
+            return (width: w, height: w * vb.height / vb.width)
+        case let (nil, h?, vb?) where vb.width > 0:
+            // Only height specified - compute width from aspect ratio
+            return (width: h * vb.width / vb.height, height: h)
+        case let (nil, nil, vb?):
+            // No dimensions - use viewBox
+            return (width: vb.width, height: vb.height)
+        default:
             return nil
         }
-        return (width: resolvedWidth, height: resolvedHeight)
     }
 
 }
