@@ -34,6 +34,10 @@ public struct SVG: ContainerElement, GraphicElement, Sendable {
     var id: String?
     var presentation: PresentationAttributes
 
+    // Position (for nested SVGs)
+    var x: Length?
+    var y: Length?
+
     var width: Length?
     var height: Length?
     var viewBox: ViewBox?
@@ -44,6 +48,8 @@ public struct SVG: ContainerElement, GraphicElement, Sendable {
 
     init(
         id: String? = nil,
+        x: Length? = nil,
+        y: Length? = nil,
         width: Length? = nil,
         height: Length? = nil,
         viewBox: ViewBox? = nil,
@@ -53,6 +59,8 @@ public struct SVG: ContainerElement, GraphicElement, Sendable {
         presentation: PresentationAttributes = PresentationAttributes()
     ) {
         self.id = id
+        self.x = x
+        self.y = y
         self.width = width
         self.height = height
         self.viewBox = viewBox

@@ -55,6 +55,8 @@ struct SVGParser {
 
         return SVG(
             id: root[attribute: "id"],
+            x: AttributeParser.parseLength(root[attribute: "x"]),
+            y: AttributeParser.parseLength(root[attribute: "y"]),
             width: AttributeParser.parseLength(root[attribute: "width"]),
             height: AttributeParser.parseLength(root[attribute: "height"]),
             viewBox: AttributeParser.parseViewBox(root[attribute: "viewBox"]),
@@ -98,7 +100,7 @@ struct SVGParser {
             }
         }
 
-        // Recurse
+        // Recurse into all children (IDs are document-global in SVG)
         for child in node.elements {
             collectDefinitions(from: child, into: &definitions, styleRules: styleRules, ancestors: childAncestors)
         }
@@ -107,40 +109,48 @@ struct SVGParser {
     private func collectDefinition(from node: Node, into definitions: inout Definitions, styleRules: [CSSRule], ancestors: [Node]) {
         guard let id = node[attribute: "id"], !id.isEmpty else { return }
 
+        // First definition wins - don't overwrite existing IDs (SVG IDs are document-global)
         if node.expandedName == SVGElementName.linearGradient {
+            guard definitions.gradients[id] == nil else { return }
             let stops = parseGradientStops(from: node)
             let gradient = ElementParsers.parseLinearGradient(from: node, stops: stops)
             definitions.gradients[id] = gradient
 
         } else if node.expandedName == SVGElementName.radialGradient {
+            guard definitions.gradients[id] == nil else { return }
             let stops = parseGradientStops(from: node)
             let gradient = ElementParsers.parseRadialGradient(from: node, stops: stops)
             definitions.gradients[id] = gradient
 
         } else if node.expandedName == SVGElementName.pattern {
+            guard definitions.patterns[id] == nil else { return }
             var innerDefs = definitions
             let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules, ancestors: ancestors)) ?? []
             let pattern = ElementParsers.parsePattern(from: node, children: children)
             definitions.patterns[id] = pattern
 
         } else if node.expandedName == SVGElementName.clipPath {
+            guard definitions.clipPaths[id] == nil else { return }
             var innerDefs = definitions
             let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules, ancestors: ancestors)) ?? []
             let clipPath = ElementParsers.parseClipPath(from: node, children: children)
             definitions.clipPaths[id] = clipPath
 
         } else if node.expandedName == SVGElementName.mask {
+            guard definitions.masks[id] == nil else { return }
             var innerDefs = definitions
             let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules, ancestors: ancestors)) ?? []
             let mask = ElementParsers.parseMask(from: node, children: children)
             definitions.masks[id] = mask
 
         } else if node.expandedName == SVGElementName.filter {
+            guard definitions.filters[id] == nil else { return }
             let primitives = parseFilterPrimitives(from: node)
             let filter = ElementParsers.parseFilter(from: node, primitives: primitives)
             definitions.filters[id] = filter
 
         } else if node.expandedName == SVGElementName.symbol {
+            guard definitions.symbols[id] == nil else { return }
             var innerDefs = definitions
             let children = (try? parseChildren(of: node, definitions: &innerDefs, styleRules: styleRules, ancestors: ancestors)) ?? []
             let symbol = ElementParsers.parseSymbol(from: node, children: children)
@@ -148,6 +158,7 @@ struct SVGParser {
 
         } else {
             // Store other elements with ids for use references
+            guard definitions.elements[id] == nil else { return }
             if let graphic = try? parseElement(node, definitions: &definitions, styleRules: styleRules, ancestors: ancestors) {
                 definitions.elements[id] = graphic
             }
@@ -165,6 +176,7 @@ struct SVGParser {
             definitions.defs.append(defs)
         }
 
+        // Recurse into all children (IDs are document-global in SVG)
         for child in node.elements {
             collectDefsContainers(from: child, into: &definitions, styleRules: styleRules, ancestors: childAncestors)
         }
@@ -241,16 +253,18 @@ struct SVGParser {
             return ElementParsers.parseGroup(from: node, children: children, styleRules: styleRules, ancestors: ancestors)
 
         } else if node.expandedName == SVGElementName.svg {
-            // Nested SVG
+            // Nested SVG - uses document-global definitions (already collected)
             let children = try parseChildren(of: node, definitions: &definitions, styleRules: styleRules, ancestors: ancestors)
             return SVG(
                 id: node[attribute: "id"],
+                x: AttributeParser.parseLength(node[attribute: "x"]),
+                y: AttributeParser.parseLength(node[attribute: "y"]),
                 width: AttributeParser.parseLength(node[attribute: "width"]),
                 height: AttributeParser.parseLength(node[attribute: "height"]),
                 viewBox: AttributeParser.parseViewBox(node[attribute: "viewBox"]),
                 preserveAspectRatio: AttributeParser.parsePreserveAspectRatio(node[attribute: "preserveAspectRatio"]),
                 children: children,
-                definitions: Definitions(),
+                definitions: Definitions(),  // Nested SVGs use parent's definitions during rendering
                 presentation: PresentationParser.parse(from: node, styleRules: styleRules, ancestors: ancestors)
             )
 

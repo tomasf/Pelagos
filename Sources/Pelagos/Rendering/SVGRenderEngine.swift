@@ -241,19 +241,53 @@ private func renderNestedSVG<R: SVGRenderer>(
     renderer.save()
     defer { renderer.restore() }
 
+    // Apply transforms from context (parent group transforms, etc.)
     let transform = makeAffineTransform(from: context.transforms)
     if !transform.isIdentity {
         renderer.concatenate(transform)
     }
 
-    // Create new context for nested SVG
+    // Apply x/y positioning
+    let x = resolveLength(svg.x, viewRef: context.viewportWidth, fontSize: context.fontSize)
+    let y = resolveLength(svg.y, viewRef: context.viewportHeight, fontSize: context.fontSize)
+    if x != 0 || y != 0 {
+        renderer.concatenate(.translation(x: x, y: y))
+    }
+
+    // Resolve nested SVG's viewport dimensions
+    let nestedWidth = svg.width.map { resolveLength($0, viewRef: context.viewportWidth, fontSize: context.fontSize) }
+        ?? svg.viewBox?.width
+    let nestedHeight = svg.height.map { resolveLength($0, viewRef: context.viewportHeight, fontSize: context.fontSize) }
+        ?? svg.viewBox?.height
+
+    // Apply clipping to the viewport
+    if let w = nestedWidth, let h = nestedHeight, w > 0, h > 0 {
+        var clipPath = renderer.makePath()
+        renderer.addRect(&clipPath, x: 0, y: 0, width: w, height: h, rx: 0, ry: 0)
+        renderer.clip(clipPath, rule: .nonzero)
+    }
+
+    // Apply viewBox transform
+    if let viewBox = svg.viewBox, let w = nestedWidth, let h = nestedHeight {
+        let viewBoxTransform = makeViewBoxTransform(
+            viewBox: viewBox,
+            outputSize: (width: w, height: h),
+            preserveAspectRatio: svg.preserveAspectRatio
+        )
+        if !viewBoxTransform.isIdentity {
+            renderer.concatenate(viewBoxTransform)
+        }
+    }
+
+    // Create new context for nested SVG with new viewport
+    // Use document-global definitions (IDs are document-global in SVG)
     let nestedContext = RenderContext(
-        presentation: svg.presentation,
-        transforms: svg.presentation.transform ?? [],
+        presentation: context.presentation,
+        transforms: [],  // Transforms already applied above
         viewBox: svg.viewBox,
         viewSize: (svg.width, svg.height),
         definitions: context.definitions,
-        opacity: svg.presentation.opacity ?? 1
+        opacity: context.opacity
     )
 
     renderContainer(svg.children, with: renderer, context: nestedContext)
