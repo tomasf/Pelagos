@@ -17,6 +17,7 @@ enum Color: Hashable, Sendable {
 extension Color {
     /// Standard SVG/CSS named colors
     static let namedColors: [String: Color] = [
+        "transparent": .rgba(red: 0, green: 0, blue: 0, alpha: 0),
         "aliceblue": .rgb(red: 240, green: 248, blue: 255),
         "antiquewhite": .rgb(red: 250, green: 235, blue: 215),
         "aqua": .rgb(red: 0, green: 255, blue: 255),
