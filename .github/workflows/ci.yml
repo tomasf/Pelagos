@@ -1,0 +1,25 @@
+name: main
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-15, ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: SwiftyLab/setup-swift@latest
+    - uses: actions/checkout@v4
+
+    - name: Build
+      run: swift build -v
+
+    - name: Run tests
+      run: swift test -v
