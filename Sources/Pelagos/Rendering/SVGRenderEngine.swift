@@ -1226,7 +1226,8 @@ private func resolvePattern(_ pattern: Pattern) -> ResolvedPaint2? {
         tileHeight: pattern.height?.value ?? 0,
         content: patternSVG,
         transform: pattern.patternTransform.flatMap { makeAffineTransformOptional(from: $0) },
-        patternUnits: pattern.patternUnits ?? .objectBoundingBox
+        patternUnits: pattern.patternUnits ?? .objectBoundingBox,
+        patternContentUnits: pattern.patternContentUnits ?? .userSpaceOnUse
     )
     return .pattern(resolved)
 }

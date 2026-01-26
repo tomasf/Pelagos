@@ -298,12 +298,22 @@ public final class CGRenderer: SVGRenderer {
         let startX = floor((tileBounds.minX - tileX) / tileWidth) * tileWidth + tileX
         let startY = floor((tileBounds.minY - tileY) / tileHeight) * tileHeight + tileY
 
+        // Calculate content scale for objectBoundingBox content units
+        let bounds = path.boundingBox
+        let contentScaleX: CGFloat = pattern.patternContentUnits == .objectBoundingBox ? bounds.width : 1
+        let contentScaleY: CGFloat = pattern.patternContentUnits == .objectBoundingBox ? bounds.height : 1
+
         var y = startY
         while y < tileBounds.maxY {
             var x = startX
             while x < tileBounds.maxX {
                 context.saveGState()
                 context.translateBy(x: x, y: y)
+
+                // Scale content for objectBoundingBox content units
+                if pattern.patternContentUnits == .objectBoundingBox {
+                    context.scaleBy(x: contentScaleX, y: contentScaleY)
+                }
 
                 // Render pattern content
                 pattern.content.render(with: self)

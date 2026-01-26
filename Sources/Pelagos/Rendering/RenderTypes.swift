@@ -336,8 +336,10 @@ public struct ResolvedPattern: Sendable {
     public var content: SVG
     /// An optional transform applied to the pattern.
     public var transform: AffineTransform?
-    /// The coordinate system for pattern coordinates.
+    /// The coordinate system for pattern tile positioning.
     public var patternUnits: CoordinateUnits
+    /// The coordinate system for pattern content.
+    public var patternContentUnits: CoordinateUnits
 
     /// Creates a resolved pattern.
     /// - Parameters:
@@ -347,7 +349,8 @@ public struct ResolvedPattern: Sendable {
     ///   - tileHeight: The tile height.
     ///   - content: The SVG content for each tile.
     ///   - transform: An optional pattern transform.
-    ///   - patternUnits: The coordinate system. Default is `.objectBoundingBox`.
+    ///   - patternUnits: The coordinate system for tile positioning. Default is `.objectBoundingBox`.
+    ///   - patternContentUnits: The coordinate system for content. Default is `.userSpaceOnUse`.
     public init(
         tileX: Double,
         tileY: Double,
@@ -355,7 +358,8 @@ public struct ResolvedPattern: Sendable {
         tileHeight: Double,
         content: SVG,
         transform: AffineTransform? = nil,
-        patternUnits: CoordinateUnits = .objectBoundingBox
+        patternUnits: CoordinateUnits = .objectBoundingBox,
+        patternContentUnits: CoordinateUnits = .userSpaceOnUse
     ) {
         self.tileX = tileX
         self.tileY = tileY
@@ -364,6 +368,7 @@ public struct ResolvedPattern: Sendable {
         self.content = content
         self.transform = transform
         self.patternUnits = patternUnits
+        self.patternContentUnits = patternContentUnits
     }
 }
 
