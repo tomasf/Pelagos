@@ -1,5 +1,4 @@
 import Foundation
-import Darwin
 
 /// Rendering context that tracks inherited state during tree traversal
 struct RenderContext: Sendable {
@@ -644,8 +643,8 @@ private func addArc<R: SVGRenderer>(
     }
 
     let phi = xAxisRotation * Double.pi / 180
-    let cosPhi = Darwin.cos(phi)
-    let sinPhi = Darwin.sin(phi)
+    let cosPhi = cos(phi)
+    let sinPhi = sin(phi)
 
     let dx = (start.x - end.x) / 2
     let dy = (start.y - end.y) / 2
@@ -656,7 +655,7 @@ private func addArc<R: SVGRenderer>(
     // Scale radii if needed
     let lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry)
     if lambda > 1 {
-        let scale = Darwin.sqrt(lambda)
+        let scale = sqrt(lambda)
         rx *= scale
         ry *= scale
     }
@@ -670,7 +669,7 @@ private func addArc<R: SVGRenderer>(
     let numerator = rxSq * rySq - rxSq * y1pSq - rySq * x1pSq
     let denom = rxSq * y1pSq + rySq * x1pSq
     let ratio: Double = denom == 0 ? 0.0 : numerator / denom
-    let factor: Double = denom == 0 ? 0.0 : sign * Darwin.sqrt(Swift.max(0.0, ratio))
+    let factor: Double = denom == 0 ? 0.0 : sign * sqrt(Swift.max(0.0, ratio))
 
     let cxp = factor * (rx * y1p) / ry
     let cyp = factor * (-ry * x1p) / rx
@@ -683,8 +682,8 @@ private func addArc<R: SVGRenderer>(
     let vx = (-x1p - cxp) / rx
     let vy = (-y1p - cyp) / ry
 
-    let startAngle = Darwin.atan2(uy, ux)
-    var deltaAngle = Darwin.atan2(ux * vy - uy * vx, ux * vx + uy * vy)
+    let startAngle = atan2(uy, ux)
+    var deltaAngle = atan2(ux * vy - uy * vx, ux * vx + uy * vy)
     if !sweep && deltaAngle > 0 {
         deltaAngle -= 2 * Double.pi
     } else if sweep && deltaAngle < 0 {
@@ -692,7 +691,7 @@ private func addArc<R: SVGRenderer>(
     }
 
     // Split into segments of at most 90 degrees
-    let segments = Int(Darwin.ceil(Swift.abs(deltaAngle / (Double.pi / 2))))
+    let segments = Int(ceil(Swift.abs(deltaAngle / (Double.pi / 2))))
     let anglePerSegment = deltaAngle / Double(segments)
 
     for i in 0..<segments {
@@ -713,21 +712,21 @@ private func addArcSegment<R: SVGRenderer>(
     startAngle: Double,
     endAngle: Double
 ) {
-    let cosPhi = Darwin.cos(rotation)
-    let sinPhi = Darwin.sin(rotation)
+    let cosPhi = cos(rotation)
+    let sinPhi = sin(rotation)
     let delta = endAngle - startAngle
-    let t = Darwin.tan(delta / 4)
+    let t = tan(delta / 4)
     let alpha = (4.0 / 3.0) * t / (1 + t * t)
 
-    let x1 = rx * Darwin.cos(startAngle)
-    let y1 = ry * Darwin.sin(startAngle)
-    let x2 = rx * Darwin.cos(endAngle)
-    let y2 = ry * Darwin.sin(endAngle)
+    let x1 = rx * cos(startAngle)
+    let y1 = ry * sin(startAngle)
+    let x2 = rx * cos(endAngle)
+    let y2 = ry * sin(endAngle)
 
-    let dx1 = -alpha * rx * Darwin.sin(startAngle)
-    let dy1 = alpha * ry * Darwin.cos(startAngle)
-    let dx2 = alpha * rx * Darwin.sin(endAngle)
-    let dy2 = -alpha * ry * Darwin.cos(endAngle)
+    let dx1 = -alpha * rx * sin(startAngle)
+    let dy1 = alpha * ry * cos(startAngle)
+    let dx2 = alpha * rx * sin(endAngle)
+    let dy2 = -alpha * ry * cos(endAngle)
 
     let endX = center.x + cosPhi * x2 - sinPhi * y2
     let endY = center.y + sinPhi * x2 + cosPhi * y2
