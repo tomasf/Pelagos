@@ -83,6 +83,27 @@ public extension SVG {
 
 // MARK: - Rendering Functions
 
+/// Maps a type-erased graphic element to its public ``SVGElementKind``.
+private func svgElementKind(of element: any GraphicElement) -> SVGElementKind {
+    switch element {
+    case is SVG: .svg
+    case is Group: .group
+    case is Anchor: .anchor
+    case is Switch: .switch
+    case is Use: .use
+    case is Rect: .rect
+    case is Circle: .circle
+    case is Ellipse: .ellipse
+    case is Line: .line
+    case is Polyline: .polyline
+    case is Polygon: .polygon
+    case is Path: .path
+    case is Text: .text
+    case is Image: .image
+    default: .other
+    }
+}
+
 private func renderContainer<R: SVGRenderer>(
     _ children: [any GraphicElement],
     with renderer: R,
@@ -105,6 +126,10 @@ private func renderElement<R: SVGRenderer>(
     if element.presentation.visibility == .hidden {
         return
     }
+
+    let kind = svgElementKind(of: element)
+    renderer.beginElement(id: element.id, kind: kind)
+    defer { renderer.endElement(id: element.id, kind: kind) }
 
     let childContext = inheritContext(context, element: element)
 

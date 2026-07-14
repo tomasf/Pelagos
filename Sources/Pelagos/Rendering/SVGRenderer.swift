@@ -92,6 +92,24 @@ public protocol SVGRenderer<Path, NativeColor> {
 
     /// Set the global opacity for subsequent drawing operations
     func setOpacity(_ opacity: Double)
+
+    // MARK: - Element Boundaries
+
+    /// Called when the engine begins rendering an element, after visibility checks
+    /// and before the element's own drawing or its children. Balanced with a matching
+    /// ``endElement(id:kind:)`` call, including for elements skipped as invisible.
+    ///
+    /// - Parameters:
+    ///   - id: The element's SVG `id`, if it has one.
+    ///   - kind: The kind of element being rendered.
+    func beginElement(id: String?, kind: SVGElementKind)
+
+    /// Called when the engine finishes rendering an element and its subtree.
+    ///
+    /// - Parameters:
+    ///   - id: The element's SVG `id`, if it has one.
+    ///   - kind: The kind of element being rendered.
+    func endElement(id: String?, kind: SVGElementKind)
 }
 
 // MARK: - Default Implementations
@@ -140,4 +158,10 @@ public extension SVGRenderer {
 
     /// Default no-op for opacity (renderers can override)
     func setOpacity(_ opacity: Double) {}
+
+    /// Default no-op element-boundary hook (renderers can override)
+    func beginElement(id: String?, kind: SVGElementKind) {}
+
+    /// Default no-op element-boundary hook (renderers can override)
+    func endElement(id: String?, kind: SVGElementKind) {}
 }
